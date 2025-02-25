@@ -1,0 +1,569 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fluid Simulation Reacting to Sound</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Verdana, sans-serif;
+      font-size: 15px;
+      margin: 0;
+      overflow: hidden;
+    }
+    .button {
+      background-color: #606060;
+      border: none;
+      color: white;
+      padding: 10px;
+      font-size: 16px;
+      margin: 4px;
+      cursor: pointer;
+    }
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px;
+      height: 6px;
+      border-radius: 5px;
+      background: #d3d3d3;
+      outline: none;
+      opacity: 0.7;
+      transition: opacity .2s;
+    }
+  </style>
+</head>
+<body>
+  <!-- Controls (optional) -->
+  <div style="position: absolute; z-index: 2; top: 10px; left: 10px;">
+    <button class="button" onclick="setupScene(1)">Wind Tunnel</button>
+    <button class="button" onclick="setupScene(3)">Hires Tunnel</button>
+    <button class="button" onclick="setupScene(0)">Tank</button>
+    <button class="button" onclick="setupScene(2)">Paint</button>
+    <input type="checkbox" id="streamButton" onclick="scene.showStreamlines = !scene.showStreamlines">Streamlines
+    <input type="checkbox" id="velocityButton" onclick="scene.showVelocities = !scene.showVelocities">Velocities
+    <input type="checkbox" id="pressureButton" onclick="scene.showPressure = !scene.showPressure;">Pressure
+    <input type="checkbox" id="smokeButton" onclick="scene.showSmoke = !scene.showSmoke;" checked>Smoke
+    <input type="checkbox" id="overrelaxButton" onclick="scene.overRelaxation = scene.overRelaxation == 1.0 ? 1.9 : 1.0" checked>Overrelax
+  </div>
+  
+  <!-- Canvas for fluid simulation -->
+  <canvas id="myCanvas" style="border:2px solid; display:block;"></canvas>
+  
+  <script>
+    // ----- Audio Input Setup using Web Audio API -----
+    let audioContext, analyser, dataArray;
+    /**
+     * Initializes audio input using the Web Audio API.
+     * 
+     * @promise
+     * @fulfill {Analyser} analyser
+     * @reject {Error} err
+     */
+    function initAudio() {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(function(stream) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256; // low resolution is fine for overall level
+        source.connect(analyser);
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+      })
+      .catch(function(err) {
+        console.error('Error accessing microphone: ', err);
+      });
+    }
+
+    /**
+     * Returns a normalized sound level between 0 and ~1 based on RMS of the time–domain data
+     * 
+     * @return {number} normalized sound level
+     */
+    function getSoundLevel() {
+      if (!analyser) return 0;
+      analyser.getByteTimeDomainData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        const sample = dataArray[i] - 128;
+        sum += sample * sample;
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+      return rms / 128;
+    }
+
+    // ----- Fluid Simulation Code (inspired by fluid_sim.html) -----
+    const canvas = document.getElementById("myCanvas");
+    const c = canvas.getContext("2d");	
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    canvas.focus();
+
+    const simHeight = 1.1;	
+    const cScale = canvas.height / simHeight;
+    const simWidth = canvas.width / cScale;
+
+    const U_FIELD = 0, V_FIELD = 1, S_FIELD = 2;
+    let cnt = 0;
+    
+    function cX(x) { return x * cScale; }
+    function cY(y) { return canvas.height - y * cScale; }
+
+    // Fluid class representing the simulation state
+    class Fluid {
+      /**
+       * Initialize a fluid simulation with the given parameters.
+       * 
+       * @param {number} density - The density of the fluid.
+       * @param {number} numX - The number of cells in the x-direction.
+       * @param {number} numY - The number of cells in the y-direction.
+       * @param {number} h - The width and height of each cell.
+       */
+      constructor(density, numX, numY, h) {
+        this.density = density;
+        this.numX = numX + 2; 
+        this.numY = numY + 2;
+        this.numCells = this.numX * this.numY;
+        this.h = h;
+        this.u = new Float32Array(this.numCells);
+        this.v = new Float32Array(this.numCells);
+        this.newU = new Float32Array(this.numCells);
+        this.newV = new Float32Array(this.numCells);
+        this.p = new Float32Array(this.numCells);
+        this.s = new Float32Array(this.numCells);
+        this.m = new Float32Array(this.numCells);
+        this.newM = new Float32Array(this.numCells);
+        this.m.fill(1.0);
+      }
+      /**
+       * Integrate the fluid simulation by one time step.
+       * 
+       * Applies gravity to all non-solid cells that are adjacent to a solid cell.
+       * This is the main time-stepping function for the simulation.
+       * 
+       * @param {number} dt - The time step for the simulation, in seconds.
+       * @param {number} gravity - The gravity force to apply to the fluid.
+       */
+      integrate(dt, gravity) {
+        const n = this.numY;
+        const arrayLength = this.numCells;
+        for (let index = n + 1; index < arrayLength - n - 1; index++) {
+          if (this.s[index] !== 0.0 && this.s[index - 1] !== 0.0)
+            this.v[index] += gravity * dt;
+        }
+      }
+      solveIncompressibility(numIters, dt) {
+        const n = this.numY;
+        const cp = this.density * this.h / dt;
+        for (let iter = 0; iter < numIters; iter++) {
+          for (let i = 1; i < this.numX-1; i++) {
+            for (let j = 1; j < this.numY-1; j++) {
+              if (this.s[i*n + j] === 0.0) continue;
+              const sx0 = this.s[(i-1)*n + j];
+              const sx1 = this.s[(i+1)*n + j];
+              const sy0 = this.s[i*n + j-1];
+              const sy1 = this.s[i*n + j+1];
+              const sSum = sx0 + sx1 + sy0 + sy1;
+              if (sSum === 0.0) continue;
+              const div = this.u[(i+1)*n + j] - this.u[i*n + j] +
+                          this.v[i*n + j+1] - this.v[i*n + j];
+              let pCorr = -div / sSum;
+              pCorr *= scene.overRelaxation;
+              this.p[i*n + j] += cp * pCorr;
+              this.u[i*n + j] -= sx0 * pCorr;
+              this.u[(i+1)*n + j] += sx1 * pCorr;
+              this.v[i*n + j] -= sy0 * pCorr;
+              this.v[i*n + j+1] += sy1 * pCorr;
+            }
+          }
+        }
+      }
+      extrapolate() {
+        const n = this.numY;
+        for (let i = 0; i < this.numX; i++) {
+          this.u[i*n + 0] = this.u[i*n + 1];
+          this.u[i*n + this.numY-1] = this.u[i*n + this.numY-2];
+        }
+        for (let j = 0; j < this.numY; j++) {
+          this.v[0*n + j] = this.v[1*n + j];
+          this.v[(this.numX-1)*n + j] = this.v[(this.numX-2)*n + j];
+        }
+      }
+      sampleField(x, y, field) {
+        const n = this.numY;
+        const h = this.h;
+        const h1 = 1.0 / h;
+        const h2 = 0.5 * h;
+        x = Math.max(Math.min(x, this.numX * h), h);
+        y = Math.max(Math.min(y, this.numY * h), h);
+        let dx = 0, dy = 0, f;
+        switch (field) {
+          case U_FIELD: f = this.u; dy = h2; break;
+          case V_FIELD: f = this.v; dx = h2; break;
+          case S_FIELD: f = this.m; dx = h2; dy = h2; break;
+        }
+        const x0 = Math.min(Math.floor((x-dx)*h1), this.numX-1);
+        const tx = ((x-dx) - x0*h) * h1;
+        const x1 = Math.min(x0 + 1, this.numX-1);
+        const y0 = Math.min(Math.floor((y-dy)*h1), this.numY-1);
+        const ty = ((y-dy) - y0*h) * h1;
+        const y1 = Math.min(y0 + 1, this.numY-1);
+        const sx = 1.0 - tx, sy = 1.0 - ty;
+        return sx*sy * f[x0*n + y0] +
+               tx*sy * f[x1*n + y0] +
+               tx*ty * f[x1*n + y1] +
+               sx*ty * f[x0*n + y1];
+      }
+      avgU(i, j) {
+        const n = this.numY;
+        return (this.u[i*n + j-1] + this.u[i*n + j] +
+                this.u[(i+1)*n + j-1] + this.u[(i+1)*n + j]) * 0.25;
+      }
+      avgV(i, j) {
+        const n = this.numY;
+        return (this.v[(i-1)*n + j] + this.v[i*n + j] +
+                this.v[(i-1)*n + j+1] + this.v[i*n + j+1]) * 0.25;
+      }
+      advectVel(dt) {
+        this.newU.set(this.u);
+        this.newV.set(this.v);
+        const n = this.numY;
+        const h = this.h, h2 = 0.5 * h;
+        for (let i = 1; i < this.numX; i++) {
+          for (let j = 1; j < this.numY; j++) {
+            // u component
+            if (this.s[i*n + j] !== 0.0 && this.s[(i-1)*n + j] !== 0.0 && j < this.numY - 1) {
+              let x = i * h, y = j * h + h2;
+              let u_val = this.u[i*n + j];
+              let v_val = this.avgV(i, j);
+              x = x - dt*u_val;
+              y = y - dt*v_val;
+              u_val = this.sampleField(x,y, U_FIELD);
+              this.newU[i*n + j] = u_val;
+            }
+            // v component
+            if (this.s[i*n + j] !== 0.0 && this.s[i*n + j-1] !== 0.0 && i < this.numX - 1) {
+              let x = i * h + h2, y = j * h;
+              let u_val = this.avgU(i, j);
+              let v_val = this.v[i*n + j];
+              x = x - dt*u_val;
+              y = y - dt*v_val;
+              v_val = this.sampleField(x,y, V_FIELD);
+              this.newV[i*n + j] = v_val;
+            }
+          }
+        }
+        this.u.set(this.newU);
+        this.v.set(this.newV);
+      }
+      advectSmoke(dt) {
+        this.newM.set(this.m);
+        const n = this.numY;
+        const h = this.h, h2 = 0.5 * h;
+        for (let i = 1; i < this.numX-1; i++) {
+          for (let j = 1; j < this.numY-1; j++) {
+            if (this.s[i*n + j] !== 0.0) {
+              const u_val = (this.u[i*n + j] + this.u[(i+1)*n + j]) * 0.5;
+              const v_val = (this.v[i*n + j] + this.v[i*n + j+1]) * 0.5;
+              const x = i*h + h2 - dt*u_val;
+              const y = j*h + h2 - dt*v_val;
+              this.newM[i*n + j] = this.sampleField(x,y, S_FIELD);
+            }
+          }
+        }
+        this.m.set(this.newM);
+      }
+      simulate(dt, gravity, numIters) {
+        this.integrate(dt, gravity);
+        this.p.fill(0.0);
+        this.solveIncompressibility(numIters, dt);
+        this.extrapolate();
+        this.advectVel(dt);
+        this.advectSmoke(dt);
+      }
+    }
+
+    // ----- Scene and Rendering -----
+    const scene = {
+      gravity: -9.81,
+      dt: 1.0 / 60.0,
+      numIters: 40,
+      frameNr: 0,
+      overRelaxation: 1.9,
+      obstacleX: 0.0,
+      obstacleY: 0.0,
+      obstacleRadius: 0.1, // Updated to the new radius
+      paused: false,
+      sceneNr: 1,
+      showObstacle: false,
+      showStreamlines: false,
+      showVelocities: false,
+      showPressure: false,
+      showSmoke: true,
+      fluid: null
+    };
+
+    function setupScene(sceneNr = 0) {
+      scene.sceneNr = sceneNr;
+      scene.obstacleRadius = 0.1; // Set to the updated radius
+      scene.overRelaxation = 1.9;
+      scene.dt = 1.0 / 60.0;
+      scene.numIters = 40;
+      let res = (sceneNr === 3) ? 200 : (sceneNr === 0 ? 50 : 100);
+      const domainHeight = 1.0;
+      const domainWidth = domainHeight / simHeight * simWidth;
+      const h = domainHeight / res;
+      const numX = Math.floor(domainWidth / h);
+      const numY = Math.floor(domainHeight / h);
+      const density = 1000.0;
+      scene.fluid = new Fluid(density, numX, numY, h);
+      const f = scene.fluid;
+      const n = f.numY;
+      
+      if (sceneNr === 0) { // tank
+        for (let i = 0; i < f.numX; i++) {
+          for (let j = 0; j < f.numY; j++) {
+            f.s[i*n+j] = (i === 0 || i === f.numX-1 || j === 0) ? 0.0 : 1.0;
+          }
+        }
+        scene.gravity = -9.81;
+        scene.showPressure = true;
+        scene.showSmoke = false;
+      } else if (sceneNr === 1 || sceneNr === 3) { // vortex shedding
+        const inVel = 2.0;
+        for (let i = 0; i < f.numX; i++) {
+          for (let j = 0; j < f.numY; j++) {
+            f.s[i*n+j] = (i === 0 || j === 0 || j === f.numY-1) ? 0.0 : 1.0;
+            if (i === 1) f.u[i*n+j] = inVel;
+          }
+        }
+        // Create a simple obstacle
+        setObstacle(0.4, 0.5, true);
+        scene.gravity = 0.0;
+        scene.showSmoke = true;
+        if (sceneNr === 3) {
+          scene.dt = 1.0/60.0;
+          scene.numIters = 40;
+          scene.showPressure = true;
+        }
+      } else if (sceneNr === 2) { // paint mode
+        scene.gravity = 0.0;
+        scene.overRelaxation = 1.0;
+        scene.showSmoke = true;
+        scene.obstacleRadius = 0.1;
+
+        // Additional settings or behavior specific to paint mode can be implemented here.
+        // You might want to set some initial conditions for the fluid in paint mode.
+        // For example, you could populate the fluid's density or velocity fields here.
+        for (let i = 0; i < f.numX; i++) {
+            for (let j = 0; j < f.numY; j++) {
+                f.m[i*n+j] = 0.0; // Initialize smoke density to 0
+            }
+        }
+      }
+
+      document.getElementById("streamButton").checked = scene.showStreamlines;
+      document.getElementById("velocityButton").checked = scene.showVelocities;
+      document.getElementById("pressureButton").checked = scene.showPressure;
+      document.getElementById("smokeButton").checked = scene.showSmoke;
+      document.getElementById("overrelaxButton").checked = scene.overRelaxation > 1.0;
+    }
+
+    function setObstacle(x, y, reset) {
+      let vx = 0.0, vy = 0.0;
+      if (!reset) {
+        vx = (x - scene.obstacleX) / scene.dt;
+        vy = (y - scene.obstacleY) / scene.dt;
+      }
+      scene.obstacleX = x;
+      scene.obstacleY = y;
+      const r = scene.obstacleRadius;
+      const f = scene.fluid;
+      const n = f.numY;
+      for (let i = 1; i < f.numX-2; i++) {
+        for (let j = 1; j < f.numY-2; j++) {
+          f.s[i*n+j] = 1.0;
+          const dx = (i+0.5)*f.h - x;
+          const dy = (j+0.5)*f.h - y;
+          if (dx*dx+dy*dy < r*r) {
+            f.s[i*n+j] = 0.0;
+            f.m[i*n+j] = (scene.sceneNr === 2) ? (0.5 + 0.5*Math.sin(0.1*scene.frameNr)) : 1.0;
+            f.u[i*n+j] = vx;
+            f.u[(i+1)*n+j] = vx;
+            f.v[i*n+j] = vy;
+            f.v[i*n+j+1] = vy;
+          }
+        }
+      }
+      scene.showObstacle = true;
+    }
+
+    // ----- Drawing the Fluid -----
+    function setColor(r, g, b) {
+      c.fillStyle = `rgb(${Math.floor(255*r)}, ${Math.floor(255*g)}, ${Math.floor(255*b)})`;
+      c.strokeStyle = `rgb(${Math.floor(255*r)}, ${Math.floor(255*g)}, ${Math.floor(255*b)})`;
+    }
+
+    function getSciColor(val, minVal, maxVal) {
+      val = Math.min(Math.max(val, minVal), maxVal-0.0001);
+      const d = maxVal - minVal;
+      val = d === 0.0 ? 0.5 : (val - minVal) / d;
+      const m = 0.25;
+      const num = Math.floor(val / m);
+      const s = (val - num * m) / m;
+      let r, g, b;
+      switch(num) {
+        case 0: r = 0.0; g = s; b = 1.0; break;
+        case 1: r = 0.0; g = 1.0; b = 1.0 - s; break;
+        case 2: r = s; g = 1.0; b = 0.0; break;
+        case 3: r = 1.0; g = 1.0 - s; b = 0.0; break;
+      }
+      return [255*r, 255*g, 255*b, 255];
+    }
+
+    function draw() {
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      const f = scene.fluid;
+      const n = f.numY;
+      const h = f.h;
+      let minP = f.p[0], maxP = f.p[0];
+      for (let i = 0; i < f.numCells; i++) {
+        minP = Math.min(minP, f.p[i]);
+        maxP = Math.max(maxP, f.p[i]);
+      }
+      const id = c.getImageData(0, 0, canvas.width, canvas.height);
+      let color = [255, 255, 255, 255];
+      for (let i = 0; i < f.numX; i++) {
+        for (let j = 0; j < f.numY; j++) {
+          if (scene.showPressure) {
+            const p = f.p[i*n+j];
+            const sVal = f.m[i*n+j];
+            color = getSciColor(p, minP, maxP);
+            if (scene.showSmoke) {
+              color[0] = Math.max(0, color[0] - 255*sVal);
+              color[1] = Math.max(0, color[1] - 255*sVal);
+              color[2] = Math.max(0, color[2] - 255*sVal);
+            }
+          } else if (scene.showSmoke) {
+            const sVal = f.m[i*n+j];
+            color = [255*sVal, 255*sVal, 255*sVal, 255];
+          } else if (f.s[i*n+j] === 0.0) {
+            color = [0, 0, 0, 255];
+          }
+          const x = Math.floor(cX(i * h));
+          const y = Math.floor(cY((j+1) * h));
+          const cx = Math.floor(cScale * 1.1 * h) + 1;
+          const cy = Math.floor(cScale * 1.1 * h) + 1;
+          for (let yi = y; yi < y + cy; yi++) {
+            let pIdx = 4 * (yi * canvas.width + x);
+            for (let xi = 0; xi < cx; xi++) {
+              id.data[pIdx++] = color[0];
+              id.data[pIdx++] = color[1];
+              id.data[pIdx++] = color[2];
+              id.data[pIdx++] = 255;
+            }
+          }
+        }
+      }
+      c.putImageData(id, 0, 0);
+      
+      // Optional: draw velocities or streamlines if enabled
+      if (scene.showVelocities) {
+        c.strokeStyle = "#000";
+        const scale = 0.02;
+        for (let i = 0; i < f.numX; i++) {
+          for (let j = 0; j < f.numY; j++) {
+            const u_val = f.u[i*n+j];
+            const v_val = f.v[i*n+j];
+            c.beginPath();
+            const x0 = cX(i*h), x1 = cX(i*h + u_val*scale);
+            const y0 = cY((j+0.5)*h);
+            c.moveTo(x0, y0);
+            c.lineTo(x1, y0);
+            c.stroke();
+            const x = cX((i+0.5)*h);
+            const y_start = cY(j*h), y_end = cY(j*h + v_val*scale);
+            c.beginPath();
+            c.moveTo(x, y_start);
+            c.lineTo(x, y_end);
+            c.stroke();
+          }
+        }
+      }
+    }
+
+    // ----- Microphone-based Fluid Disturbance -----
+    // Apply a random velocity impulse in a small block around the center of the simulation
+    // when the sound level exceeds a small threshold.
+    function applySoundImpulse() {
+      const soundLevel = getSoundLevel();
+      if (soundLevel > 0.01) {
+        const fluid = scene.fluid;
+        const centerX = Math.floor(fluid.numX / 2);
+        const centerY = Math.floor(fluid.numY / 2);
+        const impulseStrength = soundLevel * 100.0;
+        for (let i = -1; i <= 1; i++) {
+          for (let j = -1; j <= 1; j++) {
+            const index = (centerX + i) * fluid.numY + (centerY + j);
+            if (index >= 0 && index < fluid.numCells) {
+              fluid.u[index] += impulseStrength * (Math.random() + 0.5);
+              fluid.v[index] += impulseStrength * (Math.random() + 0.5);
+            }
+          }
+        }
+      }
+    }
+
+    // ----- Main Simulation Loop -----
+    function simulate() {
+      if (!scene.paused) {
+        scene.fluid.simulate(scene.dt, scene.gravity, scene.numIters);
+        scene.frameNr++;
+      }
+    }
+    
+    function update() {
+      applySoundImpulse(); // add audio-reactive disturbance each frame
+      simulate();
+      draw();
+      requestAnimationFrame(update);
+    }
+
+    // ----- Interaction Handlers -----
+    let mouseDown = false;
+    function startDrag(x, y) {
+      const bounds = canvas.getBoundingClientRect();
+      let mx = x - bounds.left;
+      let my = y - bounds.top;
+      mouseDown = true;
+      x = mx / cScale;
+      y = (canvas.height - my) / cScale;
+      setObstacle(x, y, true);
+    }
+    function drag(x, y) {
+      if (mouseDown) {
+        const bounds = canvas.getBoundingClientRect();
+        let mx = x - bounds.left;
+        let my = y - bounds.top;
+        x = mx / cScale;
+        y = (canvas.height - my) / cScale;
+        setObstacle(x, y, false);
+      }
+    }
+    function endDrag() { mouseDown = false; }
+    canvas.addEventListener('mousedown', e => startDrag(e.x, e.y));
+    canvas.addEventListener('mouseup', endDrag);
+    canvas.addEventListener('mousemove', e => drag(e.x, e.y));
+    canvas.addEventListener('touchstart', e => startDrag(e.touches[0].clientX, e.touches[0].clientY));
+    canvas.addEventListener('touchend', endDrag);
+    canvas.addEventListener('touchmove', e => { e.preventDefault(); drag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+    document.addEventListener('keydown', e => { if (e.key === 'p') scene.paused = !scene.paused; });
+    
+    // ----- Start Everything -----
+    setupScene(1);
+    initAudio(); // initialize microphone input
+    update();
+  </script>
+</body>
+</html>
