@@ -403,6 +403,13 @@
       scene.fluid = new Fluid(density, numX, numY, h);
       const f = scene.fluid;
       const n = f.numY;
+
+      // Initialize smoke density to 0 for all scenes
+      for (let i = 0; i < f.numX; i++) {
+        for (let j = 0; j < f.numY; j++) {
+          f.m[i*n+j] = 0.0;
+        }
+      }
       
       if (sceneNr === 0) { // tank
         for (let i = 0; i < f.numX; i++) {
