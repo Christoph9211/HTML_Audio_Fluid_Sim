@@ -446,10 +446,17 @@
         // Additional settings or behavior specific to paint mode can be implemented here.
         // You might want to set some initial conditions for the fluid in paint mode.
         // For example, you could populate the fluid's density or velocity fields here.
-        for (let i = 0; i < f.numX; i++) {
-            for (let j = 0; j < f.numY; j++) {
-                f.m[i*n+j] = 0.0; // Initialize smoke density to 0
-            }
+        // for (let i = 0; i < f.numX; i++) {
+        //   for (let j = 0; j < f.numY; j++) {
+        //     f.m[i*n+j] = 0.0; // Initialize smoke density to 0
+        //   }
+        // }
+
+        // Set initial conditions for paint mode (optional)
+        for (let i = Math.floor(f.numX * 0.4); i < Math.floor(f.numX * 0.6); i++) {
+          for (let j = Math.floor(f.numY * 0.4); j < Math.floor(f.numY * 0.6); j++) {
+            f.m[i*n+j] = 0.0; // Add some initial smoke density
+          }
         }
       }
 
@@ -482,11 +489,14 @@
     }
 
       // Initialize vortex points
-      const vortexPoints = [
-        new VortexPoint(0.5, 0.5, 0.8), // Center of the simulation
-        new VortexPoint(0.5, 0.5, 0.8), // Center of the simulation
-        new VortexPoint(0.5, 0.5, 1.0)  // Center of the simulation
-      ];
+      const vortexPoints = [];
+      const centerX = 0.6, centerY = 0.5, radius = 0.05, numPoints = 3;
+      for (let i = 0; i < numPoints; i++) {
+        const angle = (i / numPoints) * 2 * Math.PI;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+        vortexPoints.push(new VortexPoint(x, y, 0.8));
+      }
 
       // Add to scene object
       scene.vortexPoints = vortexPoints;
