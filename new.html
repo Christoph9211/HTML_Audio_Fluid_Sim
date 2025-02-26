@@ -725,7 +725,7 @@
       c.putImageData(id, 0, 0);
 
       // Draw vortex points if enabled
-      if (!scene.useVortices) {
+      if (scene.useVortices) {
         c.lineWidth = 2;
         const soundLevel = getSoundLevel();
         
