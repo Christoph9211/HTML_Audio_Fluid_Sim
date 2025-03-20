@@ -1423,6 +1423,11 @@
           c.stroke();
         }
       }
+
+      // Render streamlines if enabled
+      if (scene.showStreamlines) {
+        drawStreamlines();
+      }
       
       // Draw velocity vectors if enabled
       if (scene.showVelocities) {
@@ -1470,6 +1475,65 @@
           }
         }
       }
+    }
+    
+    /**
+     * Renders streamlines based on the velocity field.
+     */
+    function drawStreamlines() {
+      const f = scene.fluid;
+      const n = f.numY;
+      const h = f.h;
+    
+      c.strokeStyle = "rgba(0, 255, 0, 0.7)"; // Green color for streamlines
+      c.lineWidth = 1;
+    
+      // Define seed points for streamlines
+      const seedSpacing = Math.floor(f.numX / 20); // Adjust spacing as needed
+      for (let i = 0; i < f.numX; i += seedSpacing) {
+        for (let j = 0; j < f.numY; j += seedSpacing) {
+          const xStart = (i + 0.5) * h;
+          const yStart = (j + 0.5) * h;
+    
+          // Trace streamline from the seed point
+          traceStreamline(xStart, yStart, f, h, n);
+        }
+      }
+    }
+    
+    /**
+     * Traces a streamline starting from a given point.
+     * 
+     * @param {number} x - Starting x-coordinate.
+     * @param {number} y - Starting y-coordinate.
+     * @param {Fluid} f - The fluid simulation object.
+     * @param {number} h - Cell size.
+     * @param {number} n - Number of cells in the y-direction.
+     */
+    function traceStreamline(x, y, f, h, n) {
+      const maxSteps = 100; // Limit the length of the streamline
+      const stepSize = h * 0.5; // Step size for tracing
+      let steps = 0;
+    
+      c.beginPath();
+      c.moveTo(cX(x), cY(y));
+    
+      while (steps < maxSteps) {
+        const u = f.sampleField(x, y, U_FIELD);
+        const v = f.sampleField(x, y, V_FIELD);
+    
+        // Update position based on velocity
+        x += u * stepSize;
+        y += v * stepSize;
+    
+        // Stop if the streamline goes out of bounds
+        if (x < 0 || x > f.numX * h || y < 0 || y > f.numY * h) break;
+    
+        c.lineTo(cX(x), cY(y));
+        steps++;
+      }
+    
+      c.stroke();
     }
     
     // ----- Performance Monitoring -----
