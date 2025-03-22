@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <title>Fluid Simulation Reacting to Sound</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root {
@@ -269,7 +270,7 @@
   </div>
 
   <!-- Audio indicator -->
-  <div id="audioIndicator" class="audio-indicator" style="display: none;">
+  <div id="audioIndicator" class="audio-indicator";">
     <div class="wave" id="wave1"></div>
     <div class="wave" id="wave2"></div>
     <div class="wave" id="wave3"></div>
@@ -338,7 +339,7 @@
       </div>
     </div>
     
-    <div class="audio-controls mt-3" id="audioControlsSection" style="display: none;">
+    <div class="audio-controls mt-3" id="audioControlsSection";">
       <div class="toggle-wrapper">
         <input type="checkbox" id="audioButton" class="toggle-switch" checked>
         <label for="audioButton" class="toggle-label"></label>
@@ -352,7 +353,7 @@
     </div>
     
     <div class="audio-status mt-3">
-      <div id="noAudioMessage" style="display: none;">
+      <div id="noAudioMessage";">
         <p>Microphone access is not available in this environment.</p>
         <button class="button mt-2" id="micPermissionBtn">Request Microphone Access</button>
       </div>
