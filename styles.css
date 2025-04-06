@@ -1,3 +1,17 @@
 div {
-    display: none;
-  }
+  display: block;
+  background-color: var(--color-bg-light);
+  color: var(--color-text-light);
+  padding: 20px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+:root {
+  --color-primary: #5D5CDE;
+  --color-bg-light: #FFFFFF;
+  --color-bg-dark: #181818;
+  --color-text-light: #333333;
+  --color-text-dark: #F5F5F5;
+}
+
