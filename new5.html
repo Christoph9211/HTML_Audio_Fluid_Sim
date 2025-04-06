@@ -325,6 +325,33 @@
         <span class="ml-2">Overrelax</span>
       </div>
     </div>
+
+    <!-- Add color map selection -->
+    <div class="color-map-controls flex flex-wrap items-center mb-2">
+      <span class="mr-2">Color Map:</span>
+      <div class="flex flex-wrap gap-2">
+        <div class="toggle-wrapper">
+          <input type="radio" id="colorMapDefault" name="colorMap" value="default" class="toggle-switch">
+          <label for="colorMapDefault" class="toggle-label"></label>
+          <span class="ml-2">Default</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input type="radio" id="colorMapThermal" name="colorMap" value="thermal" class="toggle-switch">
+          <label for="colorMapThermal" class="toggle-label"></label>
+          <span class="ml-2">Thermal</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input type="radio" id="colorMapRainbow" name="colorMap" value="rainbow" class="toggle-switch">
+          <label for="colorMapRainbow" class="toggle-label"></label>
+          <span class="ml-2">Rainbow</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input type="radio" id="colorMapPlasma" name="colorMap" value="plasma" class="toggle-switch" checked>
+          <label for="colorMapPlasma" class="toggle-label"></label>
+          <span class="ml-2">Plasma</span>
+        </div>
+      </div>
+    </div>
     
     <div class="vortex-controls flex flex-wrap items-center">
       <div class="toggle-wrapper">
@@ -1791,6 +1818,13 @@
       const isVisible = controlsPanel.style.display !== 'none';
       controlsPanel.style.display = isVisible ? 'none' : 'block';
       this.textContent = isVisible ? '⚙️' : '×';
+    });
+    
+    // Add color map selection handlers
+    document.querySelectorAll('input[name="colorMap"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        currentColorMap = colorMaps[this.value];
+      });
     });
     
     // ----- Start Everything -----
