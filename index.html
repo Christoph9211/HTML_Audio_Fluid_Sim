@@ -296,31 +296,31 @@
     
     <div class="options flex flex-wrap items-center mb-2">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="streamButton" class="toggle-switch">
+        <input type="checkbox" id="streamButton" class="toggle-switch" title="Toggle Streamlines">
         <label for="streamButton" class="toggle-label"></label>
         <span class="ml-2">Streamlines</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="velocityButton" class="toggle-switch">
+        <input type="checkbox" id="velocityButton" class="toggle-switch" title="Toggle Velocities">
         <label for="velocityButton" class="toggle-label"></label>
         <span class="ml-2">Velocities</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="pressureButton" class="toggle-switch">
+        <input type="checkbox" id="pressureButton" class="toggle-switch" title="Toggle Pressure">
         <label for="pressureButton" class="toggle-label"></label>
         <span class="ml-2">Pressure</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="smokeButton" class="toggle-switch" checked>
+        <input type="checkbox" id="smokeButton" class="toggle-switch" checked title="Toggle Smoke">
         <label for="smokeButton" class="toggle-label"></label>
         <span class="ml-2">Smoke</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="overrelaxButton" class="toggle-switch" checked>
+        <input type="checkbox" id="overrelaxButton" class="toggle-switch" checked title="Toggle Overrelax">
         <label for="overrelaxButton" class="toggle-label"></label>
         <span class="ml-2">Overrelax</span>
       </div>
@@ -328,7 +328,7 @@
     
     <div class="vortex-controls flex flex-wrap items-center">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="vortexButton" class="toggle-switch" checked>
+        <input type="checkbox" id="vortexButton" class="toggle-switch" checked title="Toggle Vortices">
         <label for="vortexButton" class="toggle-label"></label>
         <span class="ml-2">Vortices</span>
       </div>
@@ -341,7 +341,7 @@
     
     <div class="audio-controls mt-3" id="audioControlsSection";">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="audioButton" class="toggle-switch" checked>
+        <input type="checkbox" id="audioButton" class="toggle-switch" title="Toggle Audio Reactive">
         <label for="audioButton" class="toggle-label"></label>
         <span class="ml-2">Audio Reactive</span>
       </div>
@@ -351,7 +351,17 @@
         <label for="audioSensitivity" class="ml-2">Sensitivity</label>
       </div>
     </div>
-    
+    <!-- Color Profile Selector -->
+    <div class="color-controls mt-3">
+      <label for="colorProfileSelect" class="ml-2">Color Profile:</label>
+      <select id="colorProfileSelect" class="ml-2">
+        <option value="default">Default</option>
+        <option value="thermal">Thermal</option>
+        <option value="rainbow">Rainbow</option>
+        <option value="plasma" selected>Plasma</option>
+      </select>
+    </div>
+
     <div class="audio-status mt-3">
       <div id="noAudioMessage";">
         <p>Microphone access is not available in this environment.</p>
@@ -1781,6 +1791,16 @@
     audioSensitivitySlider.addEventListener('input', function() {
       audioSensitivity = parseFloat(this.value) / 100;
     });
+
+        // Get the dropdown element
+    const colorProfileSelect = document.getElementById("colorProfileSelect");
+
+    // Update the color map when a new option is selected
+    colorProfileSelect.addEventListener('change', function() {
+      // Update the currentColorMap using the selected value from the dropdown
+      currentColorMap = colorMaps[this.value];
+    });
+
     
     micPermissionBtn.addEventListener('click', function() {
       initAudio();
