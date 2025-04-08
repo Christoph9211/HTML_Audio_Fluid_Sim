@@ -1,0 +1,26 @@
+{
+  "name": "html_audio_fluid_sim",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Christoph9211/HTML_Audio_Fluid_Sim.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Christoph9211/HTML_Audio_Fluid_Sim/issues"
+  },
+  "homepage": "https://github.com/Christoph9211/HTML_Audio_Fluid_Sim#readme",
+  "devDependencies": {
+    "vite": "^6.2.5"
+  }
+}
