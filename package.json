@@ -2,9 +2,9 @@
   "name": "html_audio_fluid_sim",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.html",
   "scripts": {
-    "start": "vite",
+    "dev": "vite",
     "build": "vite build",
     "serve": "vite preview"
   },
@@ -22,5 +22,25 @@
   "homepage": "https://github.com/Christoph9211/HTML_Audio_Fluid_Sim#readme",
   "devDependencies": {
     "vite": "^6.2.5"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.3",
+    "tailwindcss": "^4.1.3"
+  },
+  "vite": {
+    "server": {
+      "port": 3000
+    },
+    "build": {
+      "outDir": "dist"
+    },
+    "plugins": [],
+    "css": {
+      "preprocessorOptions": {
+        "scss": {
+          "additionalData": "@import 'src/styles/variables.scss';"
+        }
+      }
+    }
   }
 }
