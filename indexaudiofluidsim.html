@@ -1407,7 +1407,8 @@
               color = getSciColor(sVal, 0, 1);
             } else {
               // For other modes, use grayscale
-              color = [255*(1-sVal), 255*(1-sVal), 255*(1-sVal), 255];
+              // color = [255*(1-sVal), 255*(1-sVal), 255*(1-sVal), 255];
+              color = getSciColor(sVal, 0, 1);
             }
           } else {
             // Default: black for obstacles, white for fluid
