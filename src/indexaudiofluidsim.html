@@ -325,6 +325,33 @@
         <span class="ml-2">Overrelax</span>
       </div>
     </div>
+
+    <!-- Add color map selection -->
+    <div class="color-map-controls flex flex-wrap items-center mb-2">
+      <span class="mr-2">Color Map:</span>
+      <div class="flex flex-wrap gap-2">
+        <div class="toggle-wrapper">
+          <input type="radio" id="colorMapDefault" name="colorMap" value="default" class="toggle-switch">
+          <label for="colorMapDefault" class="toggle-label"></label>
+          <span class="ml-2">Default</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input type="radio" id="colorMapThermal" name="colorMap" value="thermal" class="toggle-switch">
+          <label for="colorMapThermal" class="toggle-label"></label>
+          <span class="ml-2">Thermal</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input type="radio" id="colorMapRainbow" name="colorMap" value="rainbow" class="toggle-switch">
+          <label for="colorMapRainbow" class="toggle-label"></label>
+          <span class="ml-2">Rainbow</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input type="radio" id="colorMapPlasma" name="colorMap" value="plasma" class="toggle-switch" checked>
+          <label for="colorMapPlasma" class="toggle-label"></label>
+          <span class="ml-2">Plasma</span>
+        </div>
+      </div>
+    </div>
     
     <div class="vortex-controls flex flex-wrap items-center">
       <div class="toggle-wrapper">
@@ -341,7 +368,7 @@
     
     <div class="audio-controls mt-3" id="audioControlsSection";">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="audioButton" class="toggle-switch" title="Toggle Audio Reactive">
+        <input type="checkbox" id="audioButton" class="toggle-switch" checked title="Toggle Audio Reactive">
         <label for="audioButton" class="toggle-label"></label>
         <span class="ml-2">Audio Reactive</span>
       </div>
@@ -351,17 +378,7 @@
         <label for="audioSensitivity" class="ml-2">Sensitivity</label>
       </div>
     </div>
-    <!-- Color Profile Selector -->
-    <div class="color-controls mt-3">
-      <label for="colorProfileSelect" class="ml-2">Color Profile:</label>
-      <select id="colorProfileSelect" class="ml-2">
-        <option value="default">Default</option>
-        <option value="thermal">Thermal</option>
-        <option value="rainbow">Rainbow</option>
-        <option value="plasma" selected>Plasma</option>
-      </select>
-    </div>
-
+    
     <div class="audio-status mt-3">
       <div id="noAudioMessage";">
         <p>Microphone access is not available in this environment.</p>
@@ -1486,50 +1503,58 @@
       if (scene.showVelocities) {
         c.strokeStyle = "#000";
         const scale = 0.02;
+        const maxArrowLength = 20; // Maximum arrow length in pixels
         
         // Only draw a subset of vectors to avoid cluttering
         const skipFactor = Math.max(1, Math.floor(f.numX / 50));
         
         for (let i = 1; i < f.numX; i += skipFactor) {
           for (let j = 1; j < f.numY; j += skipFactor) {
-            const index = i*n+j;
-            
-            // Only draw significant velocities to reduce visual noise
-            const u_val = f.u[index];
-            const v_val = f.v[index];
-            const velMagnitude = Math.sqrt(u_val*u_val + v_val*v_val);
-            
-            if (velMagnitude > 0.05) {
-              const x = cX((i+0.5)*h);
-              const y = cY((j+0.5)*h);
-              const vx = u_val * scale * cScale;
-              const vy = -v_val * scale * cScale;
-              
-              // Arrow body
-              c.beginPath();
-              c.moveTo(x, y);
-              c.lineTo(x + vx, y + vy);
-              
-              // Arrow head
-              const headSize = 4;
-              const angle = Math.atan2(vy, vx);
-              c.lineTo(
-                x + vx - headSize * Math.cos(angle - Math.PI/6),
-                y + vy - headSize * Math.sin(angle - Math.PI/6)
-              );
-              c.moveTo(x + vx, y + vy);
-              c.lineTo(
-                x + vx - headSize * Math.cos(angle + Math.PI/6),
-                y + vy - headSize * Math.sin(angle + Math.PI/6)
-              );
-              
-              c.stroke();
-            }
+        const index = i*n+j;
+        
+        // Only draw significant velocities to reduce visual noise
+        const u_val = f.u[index];
+        const v_val = f.v[index];
+        const velMagnitude = Math.sqrt(u_val*u_val + v_val*v_val);
+        
+        if (velMagnitude > 0.05) {
+          const x = cX((i+0.5)*h);
+          const y = cY((j+0.5)*h);
+          let vx = u_val * scale * cScale;
+          let vy = -v_val * scale * cScale;
+          
+          // Limit arrow length
+          const arrowLength = Math.sqrt(vx*vx + vy*vy);
+          if (arrowLength > maxArrowLength) {
+            const reductionFactor = maxArrowLength / arrowLength;
+            vx *= reductionFactor;
+            vy *= reductionFactor;
+          }
+          
+          // Arrow body
+          c.beginPath();
+          c.moveTo(x, y);
+          c.lineTo(x + vx, y + vy);
+          
+          // Arrow head
+          const headSize = 4;
+          const angle = Math.atan2(vy, vx);
+          c.lineTo(
+            x + vx - headSize * Math.cos(angle - Math.PI/6),
+            y + vy - headSize * Math.sin(angle - Math.PI/6)
+          );
+          c.moveTo(x + vx, y + vy);
+          c.lineTo(
+            x + vx - headSize * Math.cos(angle + Math.PI/6),
+            y + vy - headSize * Math.sin(angle + Math.PI/6)
+          );
+          
+          c.stroke();
+        }
           }
         }
       }
-    }
-    
+        }
     /**
      * Renders streamlines based on the velocity field.
      */
@@ -1793,16 +1818,6 @@
     audioSensitivitySlider.addEventListener('input', function() {
       audioSensitivity = parseFloat(this.value) / 100;
     });
-
-        // Get the dropdown element
-    const colorProfileSelect = document.getElementById("colorProfileSelect");
-
-    // Update the color map when a new option is selected
-    colorProfileSelect.addEventListener('change', function() {
-      // Update the currentColorMap using the selected value from the dropdown
-      currentColorMap = colorMaps[this.value];
-    });
-
     
     micPermissionBtn.addEventListener('click', function() {
       initAudio();
@@ -1813,6 +1828,13 @@
       const isVisible = controlsPanel.style.display !== 'none';
       controlsPanel.style.display = isVisible ? 'none' : 'block';
       this.textContent = isVisible ? '⚙️' : '×';
+    });
+    
+    // Add color map selection handlers
+    document.querySelectorAll('input[name="colorMap"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        currentColorMap = colorMaps[this.value];
+      });
     });
     
     // ----- Start Everything -----
