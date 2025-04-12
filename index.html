@@ -270,7 +270,7 @@
   </div>
 
   <!-- Audio indicator -->
-  <div id="audioIndicator" class="audio-indicator";">
+  <div id="audioIndicator" class="audio-indicator">
     <div class="wave" id="wave1"></div>
     <div class="wave" id="wave2"></div>
     <div class="wave" id="wave3"></div>
@@ -296,31 +296,31 @@
     
     <div class="options flex flex-wrap items-center mb-2">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="streamButton" class="toggle-switch">
+        <input type="checkbox" id="streamButton" class="toggle-switch" title="Toggle Streamlines">
         <label for="streamButton" class="toggle-label"></label>
         <span class="ml-2">Streamlines</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="velocityButton" class="toggle-switch">
+        <input type="checkbox" id="velocityButton" class="toggle-switch" title="Toggle Velocities">
         <label for="velocityButton" class="toggle-label"></label>
         <span class="ml-2">Velocities</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="pressureButton" class="toggle-switch">
+        <input type="checkbox" id="pressureButton" class="toggle-switch" title="Toggle Pressure">
         <label for="pressureButton" class="toggle-label"></label>
         <span class="ml-2">Pressure</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="smokeButton" class="toggle-switch" checked>
+        <input type="checkbox" id="smokeButton" class="toggle-switch" checked title="Toggle Smoke">
         <label for="smokeButton" class="toggle-label"></label>
         <span class="ml-2">Smoke</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="overrelaxButton" class="toggle-switch" checked>
+        <input type="checkbox" id="overrelaxButton" class="toggle-switch" checked title="Toggle Overrelax">
         <label for="overrelaxButton" class="toggle-label"></label>
         <span class="ml-2">Overrelax</span>
       </div>
@@ -355,7 +355,7 @@
     
     <div class="vortex-controls flex flex-wrap items-center">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="vortexButton" class="toggle-switch" checked>
+        <input type="checkbox" id="vortexButton" class="toggle-switch" checked title="Toggle Vortices">
         <label for="vortexButton" class="toggle-label"></label>
         <span class="ml-2">Vortices</span>
       </div>
@@ -366,9 +366,9 @@
       </div>
     </div>
     
-    <div class="audio-controls mt-3" id="audioControlsSection";">
+    <div class="audio-controls mt-3" id="audioControlsSection">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="audioButton" class="toggle-switch" checked>
+        <input type="checkbox" id="audioButton" class="toggle-switch" checked title="Toggle Audio Reactive">
         <label for="audioButton" class="toggle-label"></label>
         <span class="ml-2">Audio Reactive</span>
       </div>
@@ -380,7 +380,7 @@
     </div>
     
     <div class="audio-status mt-3">
-      <div id="noAudioMessage";">
+      <div id="noAudioMessage">
         <p>Microphone access is not available in this environment.</p>
         <button class="button mt-2" id="micPermissionBtn">Request Microphone Access</button>
       </div>
@@ -1503,50 +1503,58 @@
       if (scene.showVelocities) {
         c.strokeStyle = "#000";
         const scale = 0.02;
+        const maxArrowLength = 20; // Maximum arrow length in pixels
         
         // Only draw a subset of vectors to avoid cluttering
         const skipFactor = Math.max(1, Math.floor(f.numX / 50));
         
         for (let i = 1; i < f.numX; i += skipFactor) {
           for (let j = 1; j < f.numY; j += skipFactor) {
-            const index = i*n+j;
-            
-            // Only draw significant velocities to reduce visual noise
-            const u_val = f.u[index];
-            const v_val = f.v[index];
-            const velMagnitude = Math.sqrt(u_val*u_val + v_val*v_val);
-            
-            if (velMagnitude > 0.05) {
-              const x = cX((i+0.5)*h);
-              const y = cY((j+0.5)*h);
-              const vx = u_val * scale * cScale;
-              const vy = -v_val * scale * cScale;
-              
-              // Arrow body
-              c.beginPath();
-              c.moveTo(x, y);
-              c.lineTo(x + vx, y + vy);
-              
-              // Arrow head
-              const headSize = 4;
-              const angle = Math.atan2(vy, vx);
-              c.lineTo(
-                x + vx - headSize * Math.cos(angle - Math.PI/6),
-                y + vy - headSize * Math.sin(angle - Math.PI/6)
-              );
-              c.moveTo(x + vx, y + vy);
-              c.lineTo(
-                x + vx - headSize * Math.cos(angle + Math.PI/6),
-                y + vy - headSize * Math.sin(angle + Math.PI/6)
-              );
-              
-              c.stroke();
-            }
+        const index = i*n+j;
+        
+        // Only draw significant velocities to reduce visual noise
+        const u_val = f.u[index];
+        const v_val = f.v[index];
+        const velMagnitude = Math.sqrt(u_val*u_val + v_val*v_val);
+        
+        if (velMagnitude > 0.05) {
+          const x = cX((i+0.5)*h);
+          const y = cY((j+0.5)*h);
+          let vx = u_val * scale * cScale;
+          let vy = -v_val * scale * cScale;
+          
+          // Limit arrow length
+          const arrowLength = Math.sqrt(vx*vx + vy*vy);
+          if (arrowLength > maxArrowLength) {
+            const reductionFactor = maxArrowLength / arrowLength;
+            vx *= reductionFactor;
+            vy *= reductionFactor;
+          }
+          
+          // Arrow body
+          c.beginPath();
+          c.moveTo(x, y);
+          c.lineTo(x + vx, y + vy);
+          
+          // Arrow head
+          const headSize = 4;
+          const angle = Math.atan2(vy, vx);
+          c.lineTo(
+            x + vx - headSize * Math.cos(angle - Math.PI/6),
+            y + vy - headSize * Math.sin(angle - Math.PI/6)
+          );
+          c.moveTo(x + vx, y + vy);
+          c.lineTo(
+            x + vx - headSize * Math.cos(angle + Math.PI/6),
+            y + vy - headSize * Math.sin(angle + Math.PI/6)
+          );
+          
+          c.stroke();
+        }
           }
         }
       }
-    }
-    
+        }
     /**
      * Renders streamlines based on the velocity field.
      */
