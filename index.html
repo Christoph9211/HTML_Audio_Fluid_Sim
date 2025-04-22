@@ -17,7 +17,6 @@
 
   <!-- Audio indicator -->
   <div id="audioIndicator" class="audio-indicator">
-  <div id="audioIndicator" class="audio-indicator">
     <div class="wave" id="wave1"></div>
     <div class="wave" id="wave2"></div>
     <div class="wave" id="wave3"></div>
@@ -208,19 +207,10 @@
     setupCanvas();
     canvas.focus();
 
-    // Canvas zoom and pan functionality
-    // The simulation canvas can be zoomed in and out, centered on the mouse position.
-
     // Define simulation constants
     const U_FIELD = 0, V_FIELD = 1, S_FIELD = 2;
     let simHeight = 1.1;	
     let cScale = canvas.height / simHeight;
-    scene.canvasZoom = 1.0;
-    scene.canvasOffsetX = 0;
-    scene.canvasOffsetY = 0;
-
-
-
     let simWidth = canvas.width / cScale;
     
     function updateSimDimensions() {
@@ -228,8 +218,8 @@
       simWidth = canvas.width / cScale;
     }
     
-    function cX(x) { return x * cScale * scene.canvasZoom + scene.canvasOffsetX;}
-    function cY(y) { return canvas.height - y * cScale * scene.canvasZoom + scene.canvasOffsetY;}
+    function cX(x) { return x * cScale; }
+    function cY(y) { return canvas.height - y * cScale; }
     
     // ----- Audio Input Setup using Web Audio API -----
     let audioContext, analyser, dataArray;
@@ -1536,32 +1526,6 @@
         scene.paused = !scene.paused;
       }
     });
-
-    // Zoom and Pan Event Listeners
-    /**
-     * Handles zoom in and out functionality.
-     *
-     * @param {WheelEvent} event - The mouse wheel event.
-     */
-    function handleZoom(event) {
-      event.preventDefault();
-      const bounds = canvas.getBoundingClientRect();
-      const mouseX = event.clientX - bounds.left;
-      const mouseY = event.clientY - bounds.top;
-      const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
-
-      // Update zoom level
-      scene.canvasZoom *= zoomFactor;
-      scene.canvasZoom = Math.max(0.5, Math.min(scene.canvasZoom, 3.0)); // Clamp zoom level
-
-      // Update offset based on mouse position and zoom factor
-      scene.canvasOffsetX = mouseX - mouseX * zoomFactor + scene.canvasOffsetX * zoomFactor;
-      scene.canvasOffsetY = mouseY - mouseY * zoomFactor + scene.canvasOffsetY * zoomFactor;
-    }
-
-    // Event listener for zoom
-    canvas.addEventListener('wheel', handleZoom);
-    
     
     // UI Control Handlers
     streamButton.addEventListener('change', function() {
