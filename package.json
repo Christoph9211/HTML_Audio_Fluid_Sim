@@ -7,9 +7,6 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "echo \"No tests specified\"",
-    "lint": "echo \"No linting configured\"",
-    "format": "echo \"No formatter configured\"",
     "start": "vite --port 3000",
     "serve": "npx serve dist"
   },
