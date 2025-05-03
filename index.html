@@ -731,16 +731,12 @@
         const num = Math.floor(val / m);
         const s = (val - num * m) / m;
         let r, g, b;
-        
-        switch(num) {
-          case 0: r = 0.0; g = s; b = 1.0; break;
-          case 1: r = 1.0 - s; g = 1.0; b = 0.0; break;
+        switch (num) {
+          case 0: r = 0.0; g = s * 0.8 + 0.2; b = 1.0; break;
+          case 1: r = 1.0 - s * 0.8; g = 1.0; b = 0.0; break;
         }
-        
-        return [Math.floor(255*r), Math.floor(255*g), Math.floor(255*b), 255];
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
       },
-
-      // Rainbow colormap (red-orange-yellow-green-blue-purple)
       rainbow: function(val, minVal, maxVal) {
         val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
         const d = maxVal - minVal;
@@ -749,17 +745,15 @@
         const num = Math.floor(val / m);
         const s = (val - num * m) / m;
         let r, g, b;
-        
-        switch(num) {
-          case 0: r = 1.0; g = s; b = 0.0; break;
-          case 1: r = 1.0; g = 1.0; b = s; break;
-          case 2: r = s; g = 1.0; b = 0.0; break;
-          case 3: r = 0.0; g = 1.0; b = s; break;
-          case 4: r = 0.0; g = s; b = 1.0; break;
-          case 5: r = s; g = 0.0; b = 1.0; break;
+        switch (num) {
+          case 0: r = 1.0; g = s * 0.8 + 0.2; b = 0.0; break;
+          case 1: r = 1.0; g = 1.0; b = s * 0.8 + 0.2; break;
+          case 2: r = s * 0.8 + 0.2; g = 1.0; b = 0.0; break;
+          case 3: r = 0.0; g = 1.0; b = s * 0.8 + 0.2; break;
+          case 4: r = 0.0; g = s * 0.8 + 0.2; b = 1.0; break;
+          case 5: r = s * 0.8 + 0.2; g = 0.0; b = 1.0; break;
         }
-        
-        return [Math.floor(255*r), Math.floor(255*g), Math.floor(255*b), 255];
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
       },
       
       // Plasma-like colormap (purple-magenta-orange-yellow)
@@ -860,7 +854,7 @@
       scene.numIters = 40;
       
       // Different resolution based on scene type
-      let res = (sceneNr === 3) ? 200 : (sceneNr === 0 ? 50 : 100);
+      let res = 100;
       
       // For mobile devices, reduce resolution to improve performance
       if (window.innerWidth < 768) {
