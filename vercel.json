@@ -1,4 +1,5 @@
 {
+    "version": 2,
     "cleanUrls": true,
     "trailingSlash": true,
     "headers": [
@@ -15,9 +16,23 @@
           },
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; script-src 'self'; object-src 'none'"
+            "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'"
+          }
+        ]
+      },
+      {
+        "source": "/(.*)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
           }
         ]
       }
+    ],
+    "builds": [
+      { "src": "*.html", "use": "@vercel/static" },
+      { "src": "*.css", "use": "@vercel/static" },
+      { "src": "*.js", "use": "@vercel/static" }
     ]
-  }
+}

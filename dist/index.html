@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fluid Simulation Reacting to Sound</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+  
+  <link rel="stylesheet" crossorigin href="./assets/main-BZJroI6C.css">
+</head>
+<body>
+  <!-- Loading indicator -->
+  <div id="loadingIndicator" class="loading-indicator">
+    <div class="bg-primary rounded-full w-16 h-16 pulse"></div>
+    <p class="mt-4 text-lg">Initializing...</p>
+  </div>
+
+  <!-- Audio indicator -->
+  <div id="audioIndicator" class="audio-indicator">
+    <div class="wave" id="wave1"></div>
+    <div class="wave" id="wave2"></div>
+    <div class="wave" id="wave3"></div>
+    <i class="text-white text-2xl">🎤</i>
+  </div>
+
+  <!-- Controls toggle button -->
+  <button class="controls-toggle" id="controlsToggle">⚙️</button>
+  
+  <!-- Controls panel -->
+  <div class="controls-panel" id="controlsPanel">
+    <div class="flex flex-wrap justify-between items-center w-full mb-2">
+      <h2 class="text-lg font-semibold m-0">Fluid Simulation</h2>
+      <span id="fpsCounter" class="text-sm opacity-70">FPS: --</span>
+    </div>
+    
+    <div class="scenes flex flex-wrap gap-2 mb-2">
+      <button class="button" onclick="setupScene(1)">Wind Tunnel</button>
+      <button class="button" onclick="setupScene(3)">Hires Tunnel</button>
+      <button class="button" onclick="setupScene(0)">Tank</button>
+      <button class="button" onclick="setupScene(2)">Paint</button>
+    </div>
+    
+    <div class="options flex flex-wrap items-center mb-2">
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="streamButton" class="toggle-switch" title="Toggle Streamlines">
+        <label for="streamButton" class="toggle-label"></label>
+        <span class="ml-2">Streamlines</span>
+      </div>
+      
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="velocityButton" class="toggle-switch" title="Toggle Velocities">
+        <label for="velocityButton" class="toggle-label"></label>
+        <span class="ml-2">Velocities</span>
+      </div>
+      
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="pressureButton" class="toggle-switch" title="Toggle Pressure">
+        <label for="pressureButton" class="toggle-label"></label>
+        <span class="ml-2">Pressure</span>
+      </div>
+      
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="smokeButton" class="toggle-switch" checked title="Toggle Smoke">
+        <label for="smokeButton" class="toggle-label"></label>
+        <span class="ml-2">Smoke</span>
+      </div>
+      
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="overrelaxButton" class="toggle-switch" checked title="Toggle Overrelax">
+        <label for="overrelaxButton" class="toggle-label"></label>
+        <span class="ml-2">Overrelax</span>
+      </div>
+    </div>
+
+    <!-- Add color map selection -->
+    <div class="color-map-controls flex flex-wrap items-center mb-2">
+      <span class="mr-2">Color Map:</span>
+      <div class="flex flex-wrap gap-2">
+        <div class="toggle-wrapper">
+          <input title="Default" type="radio" id="colorMapDefault" name="colorMap" value="default" class="toggle-switch">
+          <label for="colorMapDefault" class="toggle-label"></label>
+          <span class="ml-2">Default</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input title="Thermal" type="radio" id="colorMapThermal" name="colorMap" value="thermal" class="toggle-switch">
+          <label for="colorMapThermal" class="toggle-label"></label>
+          <span class="ml-2">Thermal</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input title="Rainbow" type="radio" id="colorMapRainbow" name="colorMap" value="rainbow" class="toggle-switch">
+          <label for="colorMapRainbow" class="toggle-label"></label>
+          <span class="ml-2">Rainbow</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input title="Plasma" type="radio" id="colorMapPlasma" name="colorMap" value="plasma" class="toggle-switch" checked>
+          <label for="colorMapPlasma" class="toggle-label"></label>
+          <span class="ml-2">Plasma</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="vortex-controls flex flex-wrap items-center">
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="vortexButton" class="toggle-switch" checked title="Toggle Vortices">
+        <label for="vortexButton" class="toggle-label"></label>
+        <span class="ml-2">Vortices</span>
+      </div>
+      
+      <div class="flex items-center">
+        <input type="range" min="1" max="50" value="10" class="slider" id="vortexStrength">
+        <label for="vortexStrength" class="ml-2">Strength</label>
+      </div>
+    </div>
+    
+    <div class="audio-controls mt-3" id="audioControlsSection">
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="audioButton" class="toggle-switch" checked title="Toggle Audio Reactive">
+        <label for="audioButton" class="toggle-label"></label>
+        <span class="ml-2">Audio Reactive</span>
+      </div>
+      
+      <div class="flex items-center mt-2">
+        <input type="range" min="1" max="100" value="50" class="slider" id="audioSensitivity">
+        <label for="audioSensitivity" class="ml-2">Sensitivity</label>
+      </div>
+    </div>
+    
+    <div class="audio-status mt-3">
+      <div id="noAudioMessage">
+        <p>Microphone access is not available in this environment.</p>
+        <button class="button mt-2" id="micPermissionBtn">Request Microphone Access</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Canvas for fluid simulation -->
+  <canvas id="myCanvas"></canvas>
+  
+  <script>
+    // DOM elements
+    const canvas = document.getElementById("myCanvas");
+    const c = canvas.getContext("2d", { alpha: false });
+    const loadingIndicator = document.getElementById("loadingIndicator");
+    // const audioIndicator = document.getElementById("audioIndicator");
+    const wave1 = document.getElementById("wave1");
+    const wave2 = document.getElementById("wave2");
+    const wave3 = document.getElementById("wave3");
+    const controlsToggle = document.getElementById("controlsToggle");
+    const controlsPanel = document.getElementById("controlsPanel");
+    const fpsCounter = document.getElementById("fpsCounter");
+    const streamButton = document.getElementById("streamButton");
+    const velocityButton = document.getElementById("velocityButton");
+    const pressureButton = document.getElementById("pressureButton");
+    const smokeButton = document.getElementById("smokeButton");
+    const overrelaxButton = document.getElementById("overrelaxButton");
+    const vortexButton = document.getElementById("vortexButton");
+    const vortexStrengthSlider = document.getElementById("vortexStrength");
+    const audioButton = document.getElementById("audioButton");
+    const audioSensitivitySlider = document.getElementById("audioSensitivity");
+    const audioControlsSection = document.getElementById("audioControlsSection");
+    const noAudioMessage = document.getElementById("noAudioMessage");
+    const micPermissionBtn = document.getElementById("micPermissionBtn");
+    
+    // Setup canvas and resize handling
+    function setupCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas.style.display = "block";
+      canvas.style.touchAction = "none"; // Prevents scrolling on mobile
+      
+      // Force a complete clear of the canvas with the correct background color
+      const bgColor = getComputedStyle(document.body).backgroundColor;
+      c.fillStyle = bgColor;
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      c.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // Resize canvas when window size changes - with debounce to prevent excessive redraws
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      // Cancel any pending resize operation
+      clearTimeout(resizeTimeout);
+      
+      // Set a flag to indicate we're in the middle of resizing
+      window.isResizing = true;
+      
+      // Debounce the resize operation to prevent too many redraws
+      resizeTimeout = setTimeout(() => {
+        // Update canvas dimensions
+        setupCanvas();
+        updateSimDimensions();
+        
+        // Reset the scene completely to prevent ghosting
+        setupScene(scene.sceneNr);
+        
+        // Force another clear to make sure everything is fresh
+        const bgColor = getComputedStyle(document.body).backgroundColor;
+        c.fillStyle = bgColor;
+        c.clearRect(0, 0, canvas.width, canvas.height);
+        c.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Reset the resizing flag
+        window.isResizing = false;
+      }, 150); // Delay to ensure resize is complete before we redraw
+    });
+    
+    setupCanvas();
+    canvas.focus();
+
+    // Define simulation constants
+    const U_FIELD = 0, V_FIELD = 1, S_FIELD = 2;
+    let simHeight = 1.1;	
+    let cScale = canvas.height / simHeight;
+    let simWidth = canvas.width / cScale;
+    
+    function updateSimDimensions() {
+      cScale = canvas.height / simHeight;
+      simWidth = canvas.width / cScale;
+    }
+    
+    function cX(x) { return x * cScale; }
+    function cY(y) { return canvas.height - y * cScale; }
+    
+    // ----- Audio Input Setup using Web Audio API -----
+    let audioContext, analyser, dataArray;
+    let audioEnabled = false;
+    let audioSensitivity = 0.5;
+    let audioAvailable = false;
+    let noiseLevel = 0;
+    
+    /**
+     * Checks if the Web Audio API is available in this browser
+     */
+    function checkAudioSupport() {
+      return !!(window.AudioContext || window.webkitAudioContext) && 
+             !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    }
+    
+    /**
+     * Initializes audio input using the Web Audio API.
+     */
+    function initAudio() {
+      // Check if Audio API is available at all
+      if (!checkAudioSupport()) {
+        console.warn("Web Audio API is not supported in this browser");
+        showAudioNotAvailable();
+        return;
+      }
+      
+      loadingIndicator.style.display = "block";
+      
+      // Request microphone access
+      try {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const source = audioContext.createMediaStreamSource(stream);
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          source.connect(analyser);
+          dataArray = new Uint8Array(analyser.frequencyBinCount);
+          
+          audioAvailable = true;
+          audioEnabled = true;
+          loadingIndicator.style.display = "none";
+          // audioIndicator.style.display = "flex";
+          audioControlsSection.style.display = "block";
+          noAudioMessage.style.display = "none"; // Hide the no audio message
+          startAudioVisualization();
+          
+          // Calibrate noise level
+          calibrateNoise();
+        })
+        .catch(function(err) {
+          console.error('Error accessing microphone: ', err);
+          loadingIndicator.style.display = "none";
+          showAudioNotAvailable();
+        });
+      } catch (error) {
+        console.error('Error initializing audio:', error);
+        loadingIndicator.style.display = "none";
+        showAudioNotAvailable();
+      }
+    }
+    
+    /**
+     * Shows UI for when audio is not available
+     */
+    function showAudioNotAvailable() {
+      audioEnabled = false;
+      audioAvailable = false;
+      noAudioMessage.style.display = "block";
+      audioControlsSection.style.display = "none";
+      // audioIndicator.style.display = "none";
+    }
+    
+    /**
+     * Calibrates the background noise level
+     */
+    function calibrateNoise() {
+      if (!analyser) return;
+      
+      let samples = 0;
+      let totalNoise = 0;
+      
+      // Sample the background noise for 500ms
+      const sampleNoise = () => {
+        analyser.getByteTimeDomainData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const sample = dataArray[i] - 128;
+          sum += sample * sample;
+        }
+        
+        const rms = Math.sqrt(sum / dataArray.length);
+        totalNoise += rms;
+        samples++;
+        
+        if (samples < 10) {
+          setTimeout(sampleNoise, 50);
+        } else {
+          // Set noise floor to average + small buffer
+          noiseLevel = 0.01;
+          // noiseLevel = (totalNoise / samples);
+          console.log("Noise floor calibrated to:", noiseLevel);
+        }
+      };
+      
+      sampleNoise();
+    }
+    
+    /**
+     * Starts the audio visualization with animated waves.
+     */
+    function startAudioVisualization() {
+      wave1.style.animation = "wave 2s infinite";
+      wave2.style.animation = "wave 2s infinite 0.6s";
+      wave3.style.animation = "wave 2s infinite 1.2s";
+    }
+
+    
+
+    /**
+     * Returns a normalized sound level between 0 and ~1 based on RMS of the time-domain data.
+     * Applies sensitivity adjustment based on user setting.
+     * 
+     * @return {number} normalized sound level
+     */
+    function getSoundLevel() {
+      
+      if (!analyser) return 0;
+      
+      analyser.getByteTimeDomainData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        const sample = dataArray[i] - 128;
+        sum += sample * sample;
+      }
+      
+      const rms = Math.sqrt(sum / dataArray.length);
+      
+      // Subtract noise floor (with minimum of 0)
+      const cleanSignal = Math.max(0, rms - noiseLevel);
+      
+      // Apply sensitivity adjustment (0.5 is default, range 0.01-1.0)
+      return Math.min(cleanSignal / (64 * (2 - audioSensitivity * 1.8)), 1);
+    }
+    
+    // ----- Fluid Simulation Code -----
+    class Fluid {
+      /**
+       * Initialize a fluid simulation with the given parameters.
+       * 
+       * @param {number} density - The density of the fluid.
+       * @param {number} numX - The number of cells in the x-direction.
+       * @param {number} numY - The number of cells in the y-direction.
+       * @param {number} h - The width and height of each cell.
+       */
+      constructor(density, numX, numY, h) {
+        this.density = density;
+        this.numX = numX + 2; 
+        this.numY = numY + 2;
+        this.numCells = this.numX * this.numY;
+        this.h = h;
+        
+        // Use typed arrays for better performance
+        this.u = new Float32Array(this.numCells);
+        this.v = new Float32Array(this.numCells);
+        this.newU = new Float32Array(this.numCells);
+        this.newV = new Float32Array(this.numCells);
+        this.p = new Float32Array(this.numCells);
+        this.s = new Float32Array(this.numCells);
+        this.m = new Float32Array(this.numCells);
+        this.newM = new Float32Array(this.numCells);
+        this.m.fill(1.0);
+        
+        // Pre-calculate some constants
+        this.n = this.numY;
+        this.h2 = this.h * 0.5;
+      }
+      
+      /**
+       * Integrate the fluid simulation by one time step.
+       * 
+       * Applies gravity to all non-solid cells that are adjacent to a solid cell.
+       * 
+       * @param {number} dt - The time step for the simulation, in seconds.
+       * @param {number} gravity - The gravity force to apply to the fluid.
+       */
+      integrate(dt, gravity) {
+        const n = this.n;
+        const arrayLength = this.numCells;
+        
+        for (let index = n + 1; index < arrayLength - n - 1; index++) {
+          if (this.s[index] !== 0.0 && this.s[index - 1] !== 0.0)
+            this.v[index] += gravity * dt;
+        }
+      }
+      
+      /**
+       * Solve the incompressibility constraint for the fluid simulation.
+       * 
+       * Uses relaxation to iteratively adjust pressure and velocities to maintain incompressibility.
+       * 
+       * @param {number} numIters - The number of iterations to perform.
+       * @param {number} dt - The time step for the simulation, in seconds.
+       */
+      solveIncompressibility(numIters, dt) {
+        const n = this.n;
+        const cp = this.density * this.h / dt;
+        
+        for (let iter = 0; iter < numIters; iter++) {
+          for (let i = 1; i < this.numX-1; i++) {
+            for (let j = 1; j < this.numY-1; j++) {
+              const index = i*n + j;
+              if (this.s[index] === 0.0) continue;
+              
+              const sx0 = this.s[(i-1)*n + j];
+              const sx1 = this.s[(i+1)*n + j];
+              const sy0 = this.s[i*n + j-1];
+              const sy1 = this.s[i*n + j+1];
+              const sSum = sx0 + sx1 + sy0 + sy1;
+              
+              if (sSum === 0.0) continue;
+              
+              const div = this.u[(i+1)*n + j] - this.u[index] +
+                          this.v[i*n + j+1] - this.v[index];
+              let pCorr = -div / sSum;
+              pCorr *= scene.overRelaxation;
+              
+              this.p[index] += cp * pCorr;
+              this.u[index] -= sx0 * pCorr;
+              this.u[(i+1)*n + j] += sx1 * pCorr;
+              this.v[index] -= sy0 * pCorr;
+              this.v[i*n + j+1] += sy1 * pCorr;
+            }
+          }
+        }
+      }
+      
+      /**
+       * Extrapolate the values of the velocity field to the boundaries of the
+       * simulation domain.
+       */
+      extrapolate() {
+        const n = this.n;
+        for (let i = 0; i < this.numX; i++) {
+          this.u[i*n + 0] = this.u[i*n + 1];
+          this.u[i*n + this.numY-1] = this.u[i*n + this.numY-2];
+        }
+        for (let j = 0; j < this.numY; j++) {
+          this.v[0*n + j] = this.v[1*n + j];
+          this.v[(this.numX-1)*n + j] = this.v[(this.numX-2)*n + j];
+        }
+      }
+      
+      /**
+       * Interpolate a field value at a given position.
+       * 
+       * @param {number} x - The x-coordinate of the position.
+       * @param {number} y - The y-coordinate of the position.
+       * @param {number} field - The field to sample (U_FIELD, V_FIELD, or S_FIELD).
+       * @return {number} The interpolated field value.
+       */
+      sampleField(x, y, field) {
+        const n = this.n;
+        const h = this.h;
+        const h1 = 1.0 / h;
+        const h2 = this.h2;
+        
+        // Clamp coordinates to simulation bounds
+        x = Math.max(Math.min(x, this.numX * h), h);
+        y = Math.max(Math.min(y, this.numY * h), h);
+        
+        let dx = 0, dy = 0, f;
+        switch (field) {
+          case U_FIELD: f = this.u; dy = h2; break;
+          case V_FIELD: f = this.v; dx = h2; break;
+          case S_FIELD: f = this.m; dx = h2; dy = h2; break;
+        }
+        
+        // Bilinear interpolation
+        const x0 = Math.min(Math.floor((x-dx)*h1), this.numX-1);
+        const tx = ((x-dx) - x0*h) * h1;
+        const x1 = Math.min(x0 + 1, this.numX-1);
+        
+        const y0 = Math.min(Math.floor((y-dy)*h1), this.numY-1);
+        const ty = ((y-dy) - y0*h) * h1;
+        const y1 = Math.min(y0 + 1, this.numY-1);
+        
+        // Interpolation weights
+        const sx = 1.0 - tx;
+        const sy = 1.0 - ty;
+        
+        return sx*sy * f[x0*n + y0] +
+               tx*sy * f[x1*n + y0] +
+               tx*ty * f[x1*n + y1] +
+               sx*ty * f[x0*n + y1];
+      }
+      
+      /**
+       * Compute the average u velocity at the given position.
+       * 
+       * @param {number} i - The x-coordinate of the position.
+       * @param {number} j - The y-coordinate of the position.
+       * @return {number} The average u velocity at the position.
+       */
+      avgU(i, j) {
+        const n = this.n;
+        return (this.u[i*n + j-1] + this.u[i*n + j] +
+                this.u[(i+1)*n + j-1] + this.u[(i+1)*n + j]) * 0.25;
+      }
+      
+      /**
+       * Compute the average v velocity at the given position.
+       *
+       * @param {number} i - The x-coordinate of the position.
+       * @param {number} j - The y-coordinate of the position.
+       * @return {number} The average v velocity at the position.
+       */
+      avgV(i, j) {
+        const n = this.n;
+        return (this.v[(i-1)*n + j] + this.v[i*n + j] +
+                this.v[(i-1)*n + j+1] + this.v[i*n + j+1]) * 0.25;
+      }
+      
+      /**
+       * Advects the velocity fields based on the current velocity and time step.
+       * 
+       * @param {number} dt - The time step for the simulation.
+       */
+      advectVel(dt) {
+        this.newU.set(this.u);
+        this.newV.set(this.v);
+        
+        const n = this.n;
+        const h = this.h, h2 = this.h2;
+        
+        // Semi-Lagrangian advection
+        for (let i = 1; i < this.numX; i++) {
+          for (let j = 1; j < this.numY; j++) {
+            // u component
+            if (this.s[i*n + j] !== 0.0 && this.s[(i-1)*n + j] !== 0.0 && j < this.numY - 1) {
+              let x = i * h;
+              let y = j * h + h2;
+              let u_val = this.u[i*n + j];
+              let v_val = this.avgV(i, j);
+              
+              // Trace backward
+              x = x - dt*u_val;
+              y = y - dt*v_val;
+              
+              // Sample from the source position
+              u_val = this.sampleField(x, y, U_FIELD);
+              this.newU[i*n + j] = u_val;
+            }
+            
+            // v component
+            if (this.s[i*n + j] !== 0.0 && this.s[i*n + j-1] !== 0.0 && i < this.numX - 1) {
+              let x = i * h + h2;
+              let y = j * h;
+              let u_val = this.avgU(i, j);
+              let v_val = this.v[i*n + j];
+              
+              // Trace backward
+              x = x - dt*u_val;
+              y = y - dt*v_val;
+              
+              // Sample from the source position
+              v_val = this.sampleField(x, y, V_FIELD);
+              this.newV[i*n + j] = v_val;
+            }
+          }
+        }
+        
+        // Update velocity fields
+        this.u.set(this.newU);
+        this.v.set(this.newV);
+      }
+      
+      /**
+       * Advects the smoke field using a semi-Lagrangian method.
+       *
+       * @param {number} dt - The time step for the simulation.
+       */
+      advectSmoke(dt) {
+        this.newM.set(this.m);
+        
+        const n = this.n;
+        const h = this.h, h2 = this.h2;
+        
+        for (let i = 1; i < this.numX-1; i++) {
+          for (let j = 1; j < this.numY-1; j++) {
+            const index = i*n + j;
+            
+            if (this.s[index] !== 0.0) {
+              // Calculate cell center velocity
+              const u_val = (this.u[index] + this.u[(i+1)*n + j]) * 0.5;
+              const v_val = (this.v[index] + this.v[i*n + j+1]) * 0.5;
+              
+              // Trace backward
+              const x = i*h + h2 - dt*u_val;
+              const y = j*h + h2 - dt*v_val;
+              
+              // Sample from the source position
+              this.newM[index] = this.sampleField(x, y, S_FIELD);
+            }
+          }
+        }
+        
+        // Update smoke field
+        this.m.set(this.newM);
+      }
+      
+      /**
+       * Simulates the fluid simulation for one time step.
+       *
+       * @param {number} dt - The time step for the simulation.
+       * @param {number} gravity - The strength of the gravity.
+       * @param {number} numIters - The number of iterations for incompressibility.
+       */
+      simulate(dt, gravity, numIters) {
+        this.integrate(dt, gravity);
+        this.p.fill(0.0);
+        this.solveIncompressibility(numIters, dt);
+        this.extrapolate();
+        this.advectVel(dt);
+        this.advectSmoke(dt);
+      }
+    }
+    
+    // ----- Vortex System -----
+    class VortexPoint {
+      constructor(x, y, strength = 1.0) {
+        this.x = x;
+        this.y = y;
+        this.strength = strength;
+        this.originalX = x;
+        this.originalY = y;
+        this.angle = Math.random() * Math.PI * 2;
+        this.rotationSpeed = 0.01 + Math.random() * 0.02;
+        this.lastSoundLevel = 0;
+      }
+      
+      /**
+       * Updates the vortex position based on sound level and adds some natural movement.
+       * 
+       * @param {number} soundLevel - Current sound input level.
+       * @param {number} dt - Delta time since last update.
+       */
+      update(soundLevel, dt) {
+        // Add some natural circular movement
+        this.angle += this.rotationSpeed * dt * 60;
+        
+        // Sound reactive movement
+        if (soundLevel > this.lastSoundLevel) {
+          // Quick response to sound increase
+          this.x += (Math.random() - 0.5) * soundLevel * 0.03;
+          this.y += (Math.random() - 0.5) * soundLevel * 0.03;
+        } else {
+          // Gradual return to original position when sound decreases
+          this.x += (this.originalX - this.x) * 0.01;
+          this.y += (this.originalY - this.y) * 0.01;
+          
+          // Add subtle circular motion
+          this.x += Math.cos(this.angle) * 0.0005;
+          this.y += Math.sin(this.angle) * 0.0005;
+        }
+        
+        this.lastSoundLevel = soundLevel * 0.4; // 0.8 Slight decay
+        this.normalizePosition();
+      }
+      
+      // Keep vortex within simulation bounds
+      normalizePosition() {
+        if (this.x < 0.1) this.x = 0.1;
+        if (this.x > 0.9) this.x = 0.9;
+        if (this.y < 0.1) this.y = 0.1;
+        if (this.y > 0.9) this.y = 0.9;
+      }
+    }
+    
+    // ----- Visualization and Color Helpers -----
+    const colorMaps = {
+      // Default scientific colormap (blue-cyan-green-yellow-red)
+      default: function(val, minVal, maxVal) {
+        val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
+        const d = maxVal - minVal;
+        val = d === 0.0 ? 0.5 : (val - minVal) / d;
+        const m = 0.25;
+        const num = Math.floor(val / m);
+        const s = (val - num * m) / m;
+        let r, g, b;
+        
+        switch(num) {
+          case 0: r = 0.0; g = s; b = 1.0; break;
+          case 1: r = 0.0; g = 1.0; b = 1.0 - s; break;
+          case 2: r = s; g = 1.0; b = 0.0; break;
+          case 3: r = 1.0; g = 1.0 - s; b = 0.0; break;
+        }
+        
+        return [Math.floor(255*r), Math.floor(255*g), Math.floor(255*b), 255];
+      },
+
+      // Thermal colormap (blue-white-red)
+      thermal: function(val, minVal, maxVal) {
+        val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
+        const d = maxVal - minVal;
+        val = d === 0.0 ? 0.5 : (val - minVal) / d;
+        const m = 0.5;
+        const num = Math.floor(val / m);
+        const s = (val - num * m) / m;
+        let r, g, b;
+        switch (num) {
+          case 0: r = 0.0; g = s * 0.8 + 0.2; b = 1.0; break;
+          case 1: r = 1.0 - s * 0.8; g = 1.0; b = 0.0; break;
+        }
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
+      },
+      rainbow: function(val, minVal, maxVal) {
+        val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
+        const d = maxVal - minVal;
+        val = d === 0.0 ? 0.5 : (val - minVal) / d;
+        const m = 0.2;
+        const num = Math.floor(val / m);
+        const s = (val - num * m) / m;
+        let r, g, b;
+        switch (num) {
+          case 0: r = 1.0; g = s * 0.8 + 0.2; b = 0.0; break;
+          case 1: r = 1.0; g = 1.0; b = s * 0.8 + 0.2; break;
+          case 2: r = s * 0.8 + 0.2; g = 1.0; b = 0.0; break;
+          case 3: r = 0.0; g = 1.0; b = s * 0.8 + 0.2; break;
+          case 4: r = 0.0; g = s * 0.8 + 0.2; b = 1.0; break;
+          case 5: r = s * 0.8 + 0.2; g = 0.0; b = 1.0; break;
+        }
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
+      },
+      
+      // Plasma-like colormap (purple-magenta-orange-yellow)
+      plasma: function(val, minVal, maxVal) {
+        val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
+        const d = maxVal - minVal;
+        val = d === 0.0 ? 0.5 : (val - minVal) / d;
+        
+        // Base colors for interpolation
+        const colors = [
+          [13, 8, 135],    // Dark purple
+          [126, 3, 168],   // Purple
+          [204, 71, 120],  // Magenta
+          [248, 149, 64],  // Orange
+          [240, 249, 33]   // Yellow
+        ];
+        
+        // Find segment and interpolation factor
+        const segments = colors.length - 1;
+        const segment = Math.min(Math.floor(val * segments), segments - 1);
+        const t = (val * segments) - segment;
+        
+        // Interpolate between colors
+        const c1 = colors[segment];
+        const c2 = colors[segment + 1];
+        
+        return [
+          Math.floor(c1[0] + t * (c2[0] - c1[0])),
+          Math.floor(c1[1] + t * (c2[1] - c1[1])),
+          Math.floor(c1[2] + t * (c2[2] - c1[2])),
+          255
+        ];
+      }
+    };
+    
+    // Current color map function
+    let currentColorMap = colorMaps.plasma;
+    
+    /**
+     * Maps a scalar value to an RGB color using the current colormap.
+     *
+     * @param {number} val - The scalar value to be mapped to a color.
+     * @param {number} minVal - The minimum value of the scalar range.
+     * @param {number} maxVal - The maximum value of the scalar range.
+     * @returns {number[]} An array representing the RGBA color.
+     */
+    function getSciColor(val, minVal, maxVal) {
+      return currentColorMap(val, minVal, maxVal);
+    }
+    
+    /**
+     * Sets the current color for drawing functions.
+     * 
+     * @param {number} r - Red component (0-1).
+     * @param {number} g - Green component (0-1).
+     * @param {number} b - Blue component (0-1).
+     * @param {number} a - Alpha component (0-1), defaults to 1.
+     */
+    function setColor(r, g, b, a = 1) {
+      c.fillStyle = `rgba(${Math.floor(255*r)}, ${Math.floor(255*g)}, ${Math.floor(255*b)}, ${a})`;
+      c.strokeStyle = `rgba(${Math.floor(255*r)}, ${Math.floor(255*g)}, ${Math.floor(255*b)}, ${a})`;
+    }
+    
+    // ----- Scene and Rendering -----
+    const scene = {
+      gravity: -9.81,
+      dt: 1.0 / 60.0,
+      numIters: 40,
+      frameNr: 0,
+      overRelaxation: 1.9,
+      obstacleX: 0.0,
+      obstacleY: 0.0,
+      obstacleRadius: 0.1,
+      paused: false,
+      sceneNr: 1,
+      showObstacle: false,
+      showStreamlines: false,
+      showVelocities: false,
+      showPressure: false,
+      showSmoke: true,
+      useVortices: true,
+      vortexStrength: 10.0,
+      fluid: null,
+      vortexPoints: [],
+      colorMode: 'default'
+    };
+    
+    /**
+     * Sets up a new fluid simulation scene with the given scene number.
+     *
+     * @param {number} sceneNr - The scene number to set up. Defaults to 0.
+     */
+    function setupScene(sceneNr = 0) {
+      scene.sceneNr = sceneNr;
+      scene.obstacleRadius = 0.1;
+      scene.overRelaxation = 1.9;
+      scene.dt = 1.0 / 60.0;
+      scene.numIters = 40;
+      
+      // Different resolution based on scene type
+      let res = 100;
+      
+      // For mobile devices, reduce resolution to improve performance
+      if (window.innerWidth < 768) {
+        res = Math.floor(res * 0.6);
+      }
+      
+      const domainHeight = 1.0;
+      const domainWidth = domainHeight / simHeight * simWidth;
+      const h = domainHeight / res;
+      const numX = Math.floor(domainWidth / h);
+      const numY = Math.floor(domainHeight / h);
+      const density = 1000.0;
+      
+      scene.fluid = new Fluid(density, numX, numY, h);
+      const f = scene.fluid;
+      const n = f.numY;
+      
+      // Initialize smoke density to 0 for all scenes
+      for (let i = 0; i < f.numX; i++) {
+        for (let j = 0; j < f.numY; j++) {
+          f.m[i*n+j] = 0.0;
+        }
+      }
+      
+      // Configure scene based on selected preset
+      if (sceneNr === 0) { // tank
+        for (let i = 0; i < f.numX; i++) {
+          for (let j = 0; j < f.numY; j++) {
+            f.s[i*n+j] = (i === 0 || i === f.numX-1 || j === 0) ? 0.0 : 1.0;
+          }
+        }
+        scene.gravity = -9.81;
+        scene.showPressure = true;
+        scene.showSmoke = true;
+        currentColorMap = colorMaps.plasma;
+      } 
+      else if (sceneNr === 1 || sceneNr === 3) { // vortex shedding
+        const inVel = 2.0;
+        for (let i = 0; i < f.numX; i++) {
+          for (let j = 0; j < f.numY; j++) {
+            f.s[i*n+j] = (i === 0 || j === 0 || j === f.numY-1) ? 0.0 : 1.0;
+            if (i === 1) f.u[i*n+j] = inVel;
+          }
+        }
+        // Create a simple obstacle
+        setObstacle(0.4, 0.5, true);
+        scene.gravity = 0.0;
+        scene.showSmoke = true;
+        
+        if (sceneNr === 3) {
+          scene.numIters = 40;
+          scene.showPressure = true;
+          currentColorMap = colorMaps.plasma;
+        } else {
+          currentColorMap = colorMaps.default;
+        }
+      } 
+      else if (sceneNr === 2) { // paint mode
+        scene.gravity = 0.0;
+        scene.overRelaxation = 1.9;
+        scene.showSmoke = true;
+        scene.obstacleRadius = 0.1;
+        currentColorMap = colorMaps.plasma;
+        
+        // // Set initial conditions for paint mode (optional)
+        // for (let i = Math.floor(f.numX * 0.4); i < Math.floor(f.numX * 0.6); i++) {
+        //   for (let j = Math.floor(f.numY * 0.4); j < Math.floor(f.numY * 0.6); j++) {
+        //     f.m[i*n+j] = 0.0;
+        //   }
+        // }
+      }
+      
+      // Reset vortex points
+      initializeVortexPoints();
+      
+      // Sync UI controls with scene settings
+      streamButton.checked = scene.showStreamlines;
+      velocityButton.checked = scene.showVelocities;
+      pressureButton.checked = scene.showPressure;
+      smokeButton.checked = scene.showSmoke;
+      overrelaxButton.checked = scene.overRelaxation > 1.0;
+      vortexButton.checked = scene.useVortices;
+      vortexStrengthSlider.value = scene.vortexStrength;
+    }
+    
+    /**
+     * Initialize vortex points in a circular arrangement
+     */
+    function initializeVortexPoints() {
+      // Clear previous vortex points
+      scene.vortexPoints = [];
+      
+      // Create several vortex points in a circular arrangement
+      const centerX = 0.6, centerY = 0.5;
+      const radius = 0.1;
+      const numPoints = 5;
+      
+      for (let i = 0; i < numPoints; i++) {
+        const angle = (i / numPoints) * 2 * Math.PI;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+        scene.vortexPoints.push(new VortexPoint(x, y, 0.8));
+      }
+      
+      // Add some random vortex points elsewhere
+      // for (let i = 0; i < 3; i++) {
+      //   const x = 0.2 + Math.random() * 0.6;
+      //   const y = 0.2 + Math.random() * 0.6;
+      //   scene.vortexPoints.push(new VortexPoint(x, y, 0.5 + Math.random() * 0.5));
+      // }
+    }
+    
+    /**
+     * Apply forces from vortex points to the fluid.
+     * 
+     * @param {number} dt - Time step for the simulation.
+     */
+    function applyVortexForces(dt) {
+      if (!scene.useVortices) return;
+      
+      const fluid = scene.fluid;
+      const numY = fluid.numY;
+      const cellSize = fluid.h;
+      const vortexStrength = scene.vortexStrength;
+      const soundLevel = getSoundLevel();
+      
+      // Update each vortex point position/state
+      for (const vortex of scene.vortexPoints) {
+        vortex.update(soundLevel, dt);
+        
+        // Apply vortex force to fluid cells
+        for (let i = 1; i < fluid.numX - 1; i++) {
+          for (let j = 1; j < fluid.numY - 1; j++) {
+            const index = i * numY + j;
+            if (fluid.s[index] === 0.0) continue;
+            
+            const cellCenterX = (i + 0.5) * cellSize;
+            const cellCenterY = (j + 0.5) * cellSize;
+            const dx = cellCenterX - vortex.x;
+            const dy = cellCenterY - vortex.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < 0.25) {
+              const forceMagnitude = (0.25 - distance) * vortex.strength * 
+                                     vortexStrength * (soundLevel + 0.1);
+              
+              // Circular force field (perpendicular to radial direction)
+              const forceX = -dy * forceMagnitude / Math.max(distance, 0.001);
+              const forceY = dx * forceMagnitude / Math.max(distance, 0.001);
+              
+              // Apply force to velocity field
+              fluid.u[index] += forceX * 0.5;
+              fluid.u[(i + 1) * numY + j] += forceX * 0.5;
+              fluid.v[index] += forceY * 0.5;
+              fluid.v[i * numY + j + 1] += forceY * 0.5;
+            }
+          }
+        }
+      }
+    }
+    
+    /**
+     * Sets the position and velocity of the obstacle in the fluid simulation.
+     *
+     * @param {number} x - The new x-coordinate of the obstacle.
+     * @param {number} y - The new y-coordinate of the obstacle.
+     * @param {boolean} reset - Whether to reset the velocity of the obstacle to 0.
+     */
+    function setObstacle(x, y, reset) {
+      let vx = 0.0, vy = 0.0;
+      
+      if (!reset) {
+        vx = (x - scene.obstacleX) / scene.dt;
+        vy = (y - scene.obstacleY) / scene.dt;
+      }
+      
+      scene.obstacleX = x;
+      scene.obstacleY = y;
+      const r = scene.obstacleRadius;
+      const f = scene.fluid;
+      const n = f.numY;
+      
+      for (let i = 1; i < f.numX-2; i++) {
+        for (let j = 1; j < f.numY-2; j++) {
+          f.s[i*n+j] = 1.0;
+          const dx = (i+0.5)*f.h - x;
+          const dy = (j+0.5)*f.h - y;
+          
+          if (dx*dx+dy*dy < r*r) {
+            f.s[i*n+j] = 0.0;
+            
+            // In paint mode, add colored smoke at obstacle location
+            if (scene.sceneNr === 2) {
+              // Cycle hue based on frame number for a rainbow effect
+              f.m[i*n+j] = 0.5 + 0.5*Math.sin(0.1*scene.frameNr);
+            } else {
+              f.m[i*n+j] = 1.0;
+            }
+            
+            // Set velocities at obstacle
+            f.u[i*n+j] = vx;
+            f.u[(i+1)*n+j] = vx;
+            f.v[i*n+j] = vy;
+            f.v[i*n+j+1] = vy;
+          }
+        }
+      }
+      
+      scene.showObstacle = true;
+    }
+    
+    /**
+     * Apply a random velocity impulse in a small block when the sound level exceeds a threshold.
+     */
+    function applySoundImpulse() {
+      const soundLevel = getSoundLevel();
+      
+      // // Update audio indicator size based on sound level
+      // if (audioIndicator.style.display !== 'none') {
+      //   audioIndicator.style.transform = `scale(${1 + soundLevel})`;
+      // }
+      
+      if (soundLevel > 0) {
+        const fluid = scene.fluid;
+        const centerX = Math.floor(fluid.numX / 2);
+        const centerY = Math.floor(fluid.numY / 2);
+        const impulseStrength = soundLevel * 1000.0;
+        
+        // Apply impulse to a small block around the center
+        for (let i = -2; i <= 2; i++) {
+          for (let j = -2; j <= 2; j++) {
+            const index = (centerX + i) * fluid.numY + (centerY + j);
+            if (index >= 0 && index < fluid.numCells) {
+              fluid.u[index] += impulseStrength * (Math.random() * 2 - 1);
+              fluid.v[index] += impulseStrength * (Math.random() * 2 - 1);
+              
+              // Add a bit of smoke/color in paint mode
+              if (scene.sceneNr === 2 && soundLevel > 0.2) {
+                fluid.m[index] = Math.min(fluid.m[index] + soundLevel * 0.1, 1.0);
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    /**
+     * Renders the fluid simulation on the canvas.
+     */
+    function draw() {
+      // Skip drawing during resize to avoid ghosting
+      if (window.isResizing) return;
+      
+      // Get actual background color from body for proper clearing
+      const bgColor = getComputedStyle(document.body).backgroundColor;
+      
+      // Clear canvas more thoroughly
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      c.fillStyle = bgColor;
+      c.fillRect(0, 0, canvas.width, canvas.height);
+      
+      const f = scene.fluid;
+      const n = f.numY;
+      const h = f.h;
+      
+      // Find min/max pressure for color scaling
+      let minP = f.p[0], maxP = f.p[0];
+      
+      for (let i = 0; i < f.numCells; i++) {
+        minP = Math.min(minP, f.p[i]);
+        maxP = Math.max(maxP, f.p[i]);
+      }
+      
+      // Create image data for pixel manipulation - big performance win vs. drawing rects
+      const width = canvas.width;
+      const height = canvas.height;
+      const id = c.createImageData(width, height);
+      const data = id.data;
+      
+      // Calculate cell dimensions once
+      const cellWidth = Math.ceil(cScale * h);
+      const cellHeight = Math.ceil(cScale * h);
+      
+      // Render fluid cells
+      for (let i = 0; i < f.numX; i++) {
+        for (let j = 0; j < f.numY; j++) {
+          const idx = i*n+j;
+          let color = [255, 255, 255, 255]; // Default white
+          
+          // Determine cell color based on visualization mode
+          if (scene.showPressure) {
+            const p = f.p[idx];
+            const sVal = f.m[idx];
+            color = getSciColor(p, minP, maxP);
+            
+            if (scene.showSmoke) {
+              // Blend with smoke density
+              color[0] = Math.max(0, color[0] - 255*sVal);
+              color[1] = Math.max(0, color[1] - 255*sVal);
+              color[2] = Math.max(0, color[2] - 255*sVal);
+            }
+          } else if (scene.showSmoke) {
+            const sVal = f.m[idx];
+            // Show smoke density with adjusted visualization
+            if (scene.sceneNr === 2) {
+              // For paint mode, use a colorful visualization
+              color = getSciColor(sVal, 0, 1);
+            } else {
+              // For other modes, use grayscale
+              // color = [255*(1-sVal), 255*(1-sVal), 255*(1-sVal), 255];
+              color = getSciColor(sVal, 0, 1);
+            }
+          } else {
+            // Default: black for obstacles, white for fluid
+            color = f.s[idx] === 0.0 ? [0, 0, 0, 255] : [255, 255, 255, 255];
+          }
+          
+          // Calculate pixel coordinates
+          const x = Math.floor(cX(i * h));
+          const y = Math.floor(cY((j+1) * h));
+          
+          // Skip out-of-bounds cells
+          if (x < 0 || x >= width || y < 0 || y >= height) continue;
+          
+          // Draw cell as a rectangle of pixels
+          for (let yi = 0; yi < cellHeight; yi++) {
+            if (y - yi < 0 || y - yi >= height) continue; // Skip if out of bounds
+            
+            const rowOffset = 4 * ((y - yi) * width + x);
+            
+            for (let xi = 0; xi < cellWidth; xi++) {
+              if (x + xi >= width) break; // Skip if out of bounds
+              
+              const pixelOffset = rowOffset + 4 * xi;
+              data[pixelOffset] = color[0];      // R
+              data[pixelOffset + 1] = color[1];  // G
+              data[pixelOffset + 2] = color[2];  // B
+              data[pixelOffset + 3] = 255;       // A
+            }
+          }
+        }
+      }
+      
+      // Apply the pixel data to the canvas
+      c.putImageData(id, 0, 0);
+      
+      // Draw vortex points if enabled
+      if (scene.useVortices) {
+        c.lineWidth = 2;
+        const soundLevel = getSoundLevel();
+        
+        for (const vortex of scene.vortexPoints) {
+          const x = cX(vortex.x);
+          const y = cY(vortex.y);
+          
+          // Calculate vortex intensity based on sound level
+          const intensity = Math.min(0.2 + soundLevel * 3, 1.0);
+          
+          // Draw vortex circle
+          c.beginPath();
+          c.arc(x, y, 10, 0, Math.PI * 2);
+          c.strokeStyle = `rgba(255, 255, 0, ${intensity})`;
+          c.stroke();
+          
+          // Draw swirl lines
+          c.beginPath();
+          const radius = 15;
+          for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+            c.moveTo(x, y);
+            c.lineTo(
+              x + radius * Math.cos(angle), 
+              y + radius * Math.sin(angle)
+            );
+          }
+          c.strokeStyle = `rgba(255, 200, 0, ${intensity * 0.7})`;
+          c.stroke();
+        }
+      }
+
+      // Render streamlines if enabled
+      if (scene.showStreamlines) {
+        drawStreamlines();
+      }
+      
+      // Draw velocity vectors if enabled
+      if (scene.showVelocities) {
+        c.strokeStyle = "#000";
+        const scale = 0.02;
+        const maxArrowLength = 20; // Maximum arrow length in pixels
+        
+        // Only draw a subset of vectors to avoid cluttering
+        const skipFactor = Math.max(1, Math.floor(f.numX / 50));
+        
+        for (let i = 1; i < f.numX; i += skipFactor) {
+          for (let j = 1; j < f.numY; j += skipFactor) {
+        const index = i*n+j;
+        
+        // Only draw significant velocities to reduce visual noise
+        const u_val = f.u[index];
+        const v_val = f.v[index];
+        const velMagnitude = Math.sqrt(u_val*u_val + v_val*v_val);
+        
+        if (velMagnitude > 0.05) {
+          const x = cX((i+0.5)*h);
+          const y = cY((j+0.5)*h);
+          let vx = u_val * scale * cScale;
+          let vy = -v_val * scale * cScale;
+          
+          // Limit arrow length
+          const arrowLength = Math.sqrt(vx*vx + vy*vy);
+          if (arrowLength > maxArrowLength) {
+            const reductionFactor = maxArrowLength / arrowLength;
+            vx *= reductionFactor;
+            vy *= reductionFactor;
+          }
+          
+          // Arrow body
+          c.beginPath();
+          c.moveTo(x, y);
+          c.lineTo(x + vx, y + vy);
+          
+          // Arrow head
+          const headSize = 4;
+          const angle = Math.atan2(vy, vx);
+          c.lineTo(
+            x + vx - headSize * Math.cos(angle - Math.PI/6),
+            y + vy - headSize * Math.sin(angle - Math.PI/6)
+          );
+          c.moveTo(x + vx, y + vy);
+          c.lineTo(
+            x + vx - headSize * Math.cos(angle + Math.PI/6),
+            y + vy - headSize * Math.sin(angle + Math.PI/6)
+          );
+          
+          c.stroke();
+        }
+          }
+        }
+      }
+        }
+    /**
+     * Renders streamlines based on the velocity field.
+     */
+    function drawStreamlines() {
+      const f = scene.fluid;
+      const n = f.numY;
+      const h = f.h;
+    
+      c.strokeStyle = "rgba(0, 255, 0, 0.7)"; // Green color for streamlines
+      c.lineWidth = 1;
+    
+      // Define seed points for streamlines
+      const seedSpacing = Math.floor(f.numX / 20); // Adjust spacing as needed
+      for (let i = 0; i < f.numX; i += seedSpacing) {
+        for (let j = 0; j < f.numY; j += seedSpacing) {
+          const xStart = (i + 0.5) * h;
+          const yStart = (j + 0.5) * h;
+    
+          // Trace streamline from the seed point
+          traceStreamline(xStart, yStart, f, h, n);
+        }
+      }
+    }
+    
+    /**
+     * Traces a streamline starting from a given point.
+     * 
+     * @param {number} x - Starting x-coordinate.
+     * @param {number} y - Starting y-coordinate.
+     * @param {Fluid} f - The fluid simulation object.
+     * @param {number} h - Cell size.
+     * @param {number} n - Number of cells in the y-direction.
+     */
+    function traceStreamline(x, y, f, h, n) {
+      const maxSteps = 100; // Limit the length of the streamline
+      const stepSize = h * 0.5; // Step size for tracing
+      let steps = 0;
+    
+      c.beginPath();
+      c.moveTo(cX(x), cY(y));
+    
+      while (steps < maxSteps) {
+        const u = f.sampleField(x, y, U_FIELD);
+        const v = f.sampleField(x, y, V_FIELD);
+    
+        // Update position based on velocity
+        x += u * stepSize;
+        y += v * stepSize;
+    
+        // Stop if the streamline goes out of bounds
+        if (x < 0 || x > f.numX * h || y < 0 || y > f.numY * h) break;
+    
+        c.lineTo(cX(x), cY(y));
+        steps++;
+      }
+    
+      c.stroke();
+    }
+    
+    // ----- Performance Monitoring -----
+    let lastTime = 0;
+    let frameCount = 0;
+    let fps = 0;
+    const fpsUpdateInterval = 5; // ms
+    let lastFpsUpdate = 0;
+    
+    function updateFps(timestamp) {
+      if (!lastTime) {
+        lastTime = timestamp;
+        return;
+      }
+      
+      // Count frames
+      frameCount++;
+      
+      // Update FPS counter every interval
+      if (timestamp - lastFpsUpdate > fpsUpdateInterval) {
+        fps = Math.round(frameCount * 1000 / (timestamp - lastFpsUpdate));
+        fpsCounter.textContent = `FPS: ${fps}`;
+        frameCount = 0;
+        lastFpsUpdate = timestamp;
+      }
+    }
+    
+    // ----- Main Simulation Loop -----
+    let lastTimestamp = 0;
+    
+    /**
+     * Runs a simulation step.
+     */
+    function simulate(dt) {
+      if (!scene.paused) {
+        applyVortexForces(dt);
+        scene.fluid.simulate(scene.dt, scene.gravity, scene.numIters);
+        scene.frameNr++;
+      }
+    }
+    
+    /**
+     * Main simulation loop.
+     * 
+     * @param {number} timestamp - Current animation frame timestamp.
+     */
+    function update(timestamp) {
+      // Skip updates during resize to avoid artifacts
+      if (window.isResizing) {
+        requestAnimationFrame(update);
+        return;
+      }
+      
+      // Calculate actual delta time
+      const dt = (timestamp - lastTimestamp) / 1000;
+      lastTimestamp = timestamp;
+      
+      // Update FPS counter
+      updateFps(timestamp);
+      
+      // Apply sound-based disturbance
+      applySoundImpulse();
+      
+      // Simulate fluid
+      simulate(dt);
+      
+      // Render the simulation
+      draw();
+      
+      // Schedule next frame
+      requestAnimationFrame(update);
+    }
+    
+    // ----- Interaction Handlers -----
+    let mouseDown = false;
+    let touchId = null;
+    
+    /**
+     * Initiates dragging operation for setting an obstacle in the fluid simulation.
+     * 
+     * @param {number} x - The x-coordinate of the event.
+     * @param {number} y - The y-coordinate of the event.
+     */
+    function startDrag(x, y) {
+      const bounds = canvas.getBoundingClientRect();
+      let mx = x - bounds.left;
+      let my = y - bounds.top;
+      mouseDown = true;
+      x = mx / cScale;
+      y = (canvas.height - my) / cScale;
+      setObstacle(x, y, true);
+    }
+    
+    /**
+     * Continues a dragging operation for setting an obstacle in the fluid simulation.
+     * 
+     * @param {number} x - The x-coordinate of the event.
+     * @param {number} y - The y-coordinate of the event.
+     */
+    function drag(x, y) {
+      if (mouseDown) {
+        const bounds = canvas.getBoundingClientRect();
+        let mx = x - bounds.left;
+        let my = y - bounds.top;
+        x = mx / cScale;
+        y = (canvas.height - my) / cScale;
+        setObstacle(x, y, false);
+      }
+    }
+    
+    function endDrag() { 
+      mouseDown = false;
+      touchId = null;
+    }
+    
+    // Mouse event handlers
+    canvas.addEventListener('mousedown', e => {
+      e.preventDefault();
+      startDrag(e.clientX, e.clientY);
+    });
+    
+    canvas.addEventListener('mouseup', endDrag);
+    
+    canvas.addEventListener('mousemove', e => {
+      drag(e.clientX, e.clientY);
+    });
+    
+    canvas.addEventListener('mouseleave', endDrag);
+    
+    // Touch event handlers
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      if (touchId === null) {
+        const touch = e.changedTouches[0];
+        touchId = touch.identifier;
+        startDrag(touch.clientX, touch.clientY);
+      }
+    }, { passive: false });
+    
+    canvas.addEventListener('touchend', e => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === touchId) {
+          endDrag();
+          break;
+        }
+      }
+    }, { passive: false });
+    
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === touchId) {
+          drag(touch.clientX, touch.clientY);
+          break;
+        }
+      }
+    }, { passive: false });
+    
+    canvas.addEventListener('touchcancel', endDrag);
+    
+    // Keyboard controls
+    document.addEventListener('keydown', e => {
+      if (e.key === 'p' || e.key === 'P') {
+        scene.paused = !scene.paused;
+      }
+    });
+    
+    // UI Control Handlers
+    streamButton.addEventListener('change', function() {
+      scene.showStreamlines = this.checked;
+    });
+    
+    velocityButton.addEventListener('change', function() {
+      scene.showVelocities = this.checked;
+    });
+    
+    pressureButton.addEventListener('change', function() {
+      scene.showPressure = this.checked;
+    });
+    
+    smokeButton.addEventListener('change', function() {
+      scene.showSmoke = this.checked;
+    });
+    
+    overrelaxButton.addEventListener('change', function() {
+      scene.overRelaxation = this.checked ? 1.9 : 1.0;
+    });
+    
+    vortexButton.addEventListener('change', function() {
+      scene.useVortices = this.checked;
+    });
+    
+    vortexStrengthSlider.addEventListener('input', function() {
+      scene.vortexStrength = parseFloat(this.value);
+    });
+    
+    // audioButton.addEventListener('change', function() {
+    //   audioEnabled = this.checked;
+    //   audioIndicator.style.display = audioEnabled ? 'flex' : 'none';
+    // });
+    
+    audioSensitivitySlider.addEventListener('input', function() {
+      audioSensitivity = parseFloat(this.value) / 100;
+    });
+    
+    micPermissionBtn.addEventListener('click', function() {
+      initAudio();
+    });
+    
+    // Controls panel toggle
+    controlsToggle.addEventListener('click', function() {
+      const isVisible = controlsPanel.style.display !== 'none';
+      controlsPanel.style.display = isVisible ? 'none' : 'block';
+      this.textContent = isVisible ? '⚙️' : '×';
+    });
+    
+    // Add color map selection handlers
+    document.querySelectorAll('input[name="colorMap"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        currentColorMap = colorMaps[this.value];
+      });
+    });
+    
+    // ----- Start Everything -----
+    setupScene(2);  // Start with Paint scene
+    
+    // Try to initialize audio if available in the environment
+    // Delay audio initialization to ensure DOM is fully loaded
+    setTimeout(function() {
+      try {
+        if (checkAudioSupport()) {
+          initAudio();
+        } else {
+          showAudioNotAvailable();
+        }
+      } catch (error) {
+        console.error("Could not initialize audio:", error);
+        showAudioNotAvailable();
+      }
+      
+      // Start the animation loop
+      loadingIndicator.style.display = 'none';
+      requestAnimationFrame(update);
+    }, 5);
+  </script>
+</body>
+</html>

@@ -1,3 +1,6 @@
 old
 settings.json
 launch.json
+node_modules
+.vscode
+.vercel
