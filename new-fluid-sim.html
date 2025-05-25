@@ -1,0 +1,1159 @@
+</script><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Enhanced Audio-Reactive Fluid Simulation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="./output.css" rel="stylesheet">
+</head>
+<body>
+  <!-- Loading indicator -->
+  <div id="loadingIndicator" class="loading-indicator">
+    <div class="bg-primary rounded-full w-16 h-16 pulse"></div>
+    <p class="mt-4 text-lg">Initializing...</p>
+  </div>
+
+  <!-- Audio indicator -->
+  <div id="audioIndicator" class="audio-indicator">
+    <div class="wave" id="wave1"></div>
+    <div class="wave" id="wave2"></div>
+    <div class="wave" id="wave3"></div>
+    <i class="text-white text-2xl">🎤</i>
+  </div>
+
+  <!-- Controls toggle button -->
+  <button class="controls-toggle" id="controlsToggle">⚙️</button>
+  
+  <!-- Controls panel -->
+  <div class="controls-panel" id="controlsPanel">
+    <div class="flex flex-wrap justify-between items-center w-full mb-2">
+      <h2 class="text-lg font-semibold m-0">Fluid Simulation</h2>
+      <span id="fpsCounter" class="text-sm opacity-70">FPS: --</span>
+    </div>
+    
+    <div class="scenes flex flex-wrap gap-2 mb-2">
+      <button class="button" onclick="setupScene(1)">Wind Tunnel</button>
+      <button class="button" onclick="setupScene(3)">Hires Tunnel</button>
+      <button class="button" onclick="setupScene(0)">Tank</button>
+      <button class="button" onclick="setupScene(2)">Paint</button>
+    </div>
+    
+    <div class="options flex flex-wrap items-center mb-2">
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="streamButton" class="toggle-switch" title="Toggle Streamlines">
+        <label for="streamButton" class="toggle-label"></label>
+        <span class="ml-2">Streamlines</span>
+      </div>
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="velocityButton" class="toggle-switch" title="Toggle Velocities">
+        <label for="velocityButton" class="toggle-label"></label>
+        <span class="ml-2">Velocities</span>
+      </div>
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="pressureButton" class="toggle-switch" title="Toggle Pressure">
+        <label for="pressureButton" class="toggle-label"></label>
+        <span class="ml-2">Pressure</span>
+      </div>
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="smokeButton" class="toggle-switch" checked title="Toggle Smoke">
+        <label for="smokeButton" class="toggle-label"></label>
+        <span class="ml-2">Smoke</span>
+      </div>
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="overrelaxButton" class="toggle-switch" checked title="Toggle Overrelax">
+        <label for="overrelaxButton" class="toggle-label"></label>
+        <span class="ml-2">Overrelax</span>
+      </div>
+    </div>
+
+    <!-- Color map selection -->
+    <div class="color-map-controls flex flex-wrap items-center mb-2">
+      <span class="mr-2">Color Map:</span>
+      <div class="flex flex-wrap gap-2">
+        <div class="toggle-wrapper">
+          <input title="Default" type="radio" id="colorMapDefault" name="colorMap" value="default" class="toggle-switch">
+          <label for="colorMapDefault" class="toggle-label"></label>
+          <span class="ml-2">Default</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input title="Thermal" type="radio" id="colorMapThermal" name="colorMap" value="thermal" class="toggle-switch">
+          <label for="colorMapThermal" class="toggle-label"></label>
+          <span class="ml-2">Thermal</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input title="Rainbow" type="radio" id="colorMapRainbow" name="colorMap" value="rainbow" class="toggle-switch">
+          <label for="colorMapRainbow" class="toggle-label"></label>
+          <span class="ml-2">Rainbow</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input title="Plasma" type="radio" id="colorMapPlasma" name="colorMap" value="plasma" class="toggle-switch" checked>
+          <label for="colorMapPlasma" class="toggle-label"></label>
+          <span class="ml-2">Plasma</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="vortex-controls flex flex-wrap items-center">
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="vortexButton" class="toggle-switch" checked title="Toggle Vortices">
+        <label for="vortexButton" class="toggle-label"></label>
+        <span class="ml-2">Vortices</span>
+      </div>
+      <div class="flex items-center">
+        <input type="range" min="1" max="50" value="10" class="slider" id="vortexStrength">
+        <label for="vortexStrength" class="ml-2">Strength</label>
+      </div>
+    </div>
+    
+    <div class="audio-controls mt-3" id="audioControlsSection">
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="audioButton" class="toggle-switch" checked title="Toggle Audio Reactive">
+        <label for="audioButton" class="toggle-label"></label>
+        <span class="ml-2">Audio Reactive</span>
+      </div>
+      <div class="flex items-center mt-2">
+        <input type="range" min="1" max="100" value="50" class="slider" id="audioSensitivity">
+        <label for="audioSensitivity" class="ml-2">Sensitivity</label>
+      </div>
+    </div>
+    
+    <div class="audio-status mt-3">
+      <div id="noAudioMessage">
+        <p>Microphone access is not available.</p>
+        <button class="button mt-2" id="micPermissionBtn">Request Microphone Access</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Canvas for fluid simulation -->
+  <canvas id="myCanvas"></canvas>
+  
+  <script>
+    const canvas = document.getElementById("myCanvas");
+    const c = canvas.getContext("2d", { alpha: false });
+    const loadingIndicator = document.getElementById("loadingIndicator");
+    const audioIndicator = document.getElementById("audioIndicator");
+    const controlsToggle = document.getElementById("controlsToggle");
+    const controlsPanel = document.getElementById("controlsPanel");
+    const fpsCounter = document.getElementById("fpsCounter");
+    const streamButton = document.getElementById("streamButton");
+    const velocityButton = document.getElementById("velocityButton");
+    const pressureButton = document.getElementById("pressureButton");
+    const smokeButton = document.getElementById("smokeButton");
+    const vorticityButton = document.getElementById("vorticityButton");
+    const eduModeButton = document.getElementById("eduModeButton");
+    const vortexButton = document.getElementById("vortexButton");
+    const vortexStrengthSlider = document.getElementById("vortexStrength");
+    const audioButton = document.getElementById("audioButton");
+    const audioSensitivitySlider = document.getElementById("audioSensitivity");
+    const audioControlsSection = document.getElementById("audioControlsSection");
+    const noAudioMessage = document.getElementById("noAudioMessage");
+    const micPermissionBtn = document.getElementById("micPermissionBtn");
+
+    function setupCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas.style.display = "block";
+      canvas.style.touchAction = "none";
+      const bgColor = getComputedStyle(document.body).backgroundColor;
+      c.fillStyle = bgColor;
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      c.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      window.isResizing = true;
+      resizeTimeout = setTimeout(() => {
+        setupCanvas();
+        updateSimDimensions();
+        setupScene(scene.sceneNr);
+        const bgColor = getComputedStyle(document.body).backgroundColor;
+        c.fillStyle = bgColor;
+        c.clearRect(0, 0, canvas.width, canvas.height);
+        c.fillRect(0, 0, canvas.width, canvas.height);
+        window.isResizing = false;
+      }, 150);
+    });
+
+    setupCanvas();
+    canvas.focus();
+
+    const U_FIELD = 0, V_FIELD = 1, S_FIELD = 2;
+    let simHeight = 1.1;
+    let cScale = canvas.height / simHeight;
+    let simWidth = canvas.width / cScale;
+
+    function updateSimDimensions() {
+      cScale = canvas.height / simHeight;
+      simWidth = canvas.width / cScale;
+    }
+
+    function cX(x) { return x * cScale; }
+    function cY(y) { return canvas.height - y * cScale; }
+
+    // Enhanced Audio Processing
+    let audioContext, analyser, dataArray, frequencyData;
+    let audioEnabled = true;
+    let audioSensitivity = 0.01;
+    let audioAvailable = false;
+    let noiseLevel = 0;
+
+    function checkAudioSupport() {
+      return !!(window.AudioContext || window.webkitAudioContext) && 
+             !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    }
+
+    function initAudio() {
+      if (!checkAudioSupport()) {
+        console.warn("Web Audio API not supported");
+        showAudioNotAvailable();
+        return;
+      }
+
+      loadingIndicator.style.display = "block";
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const source = audioContext.createMediaStreamSource(stream);
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 512; // Increased for better frequency resolution
+          source.connect(analyser);
+          dataArray = new Uint8Array(analyser.frequencyBinCount);
+          frequencyData = new Uint8Array(analyser.frequencyBinCount);
+
+          audioAvailable = true;
+          audioEnabled = true;
+          loadingIndicator.style.display = "none";
+          audioControlsSection.style.display = "block";
+          noAudioMessage.style.display = "none";
+          startAudioVisualization();
+          // calibrateNoise();
+        })
+        .catch(err => {
+          console.error('Microphone error:', err);
+          loadingIndicator.style.display = "none";
+          showAudioNotAvailable();
+        });
+    }
+
+    function showAudioNotAvailable() {
+      audioEnabled = false;
+      audioAvailable = false;
+      noAudioMessage.style.display = "block";
+      audioControlsSection.style.display = "none";
+    }
+
+    // function calibrateNoise() {
+    //   if (!analyser) return;
+    //   let samples = 0, totalNoise = 0;
+    //   const sampleNoise = () => {
+    //     analyser.getByteTimeDomainData(dataArray);
+    //     let sum = 0;
+    //     for (let i = 0; i < dataArray.length; i++) {
+    //       const sample = dataArray[i] - 128;
+    //       sum += sample * sample;
+    //     }
+    //     const rms = Math.sqrt(sum / dataArray.length);
+    //     totalNoise += rms;
+    //     samples++;
+    //     if (samples < 10) setTimeout(sampleNoise, 50);
+    //     else {
+    //       noiseLevel = (totalNoise / samples) * 1.2;
+    //       console.log("Noise floor:", noiseLevel);
+    //     }
+    //   };
+    //   sampleNoise();
+    // }
+
+    function startAudioVisualization() {
+      audioIndicator.style.display = "flex";
+      const waves = [document.getElementById("wave1"), document.getElementById("wave2"), document.getElementById("wave3")];
+      waves.forEach((wave, i) => wave.style.animation = `wave 2s infinite ${i * 0.6}s`);
+    }
+
+    function getSoundLevel() {
+      if (!analyser || !audioEnabled) return { overall: 0, low: 0, mid: 0, high: 0 };
+      analyser.getByteTimeDomainData(dataArray);
+      analyser.getByteFrequencyData(frequencyData);
+
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        const sample = dataArray[i] - 128;
+        sum += sample * sample;
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+      const overall = Math.min(Math.max(0, rms - noiseLevel) / (64 * (2 - audioSensitivity * 1.8)), 1);
+
+      // Frequency band analysis
+      const binCount = analyser.frequencyBinCount;
+      const lowRange = Math.floor(binCount * 0.2);   // 0-20% for low frequencies
+      const midRange = Math.floor(binCount * 0.6);   // 20-60% for mid frequencies
+      let lowSum = 0, midSum = 0, highSum = 0;
+      for (let i = 0; i < lowRange; i++) lowSum += frequencyData[i];
+      for (let i = lowRange; i < midRange; i++) midSum += frequencyData[i];
+      for (let i = midRange; i < binCount; i++) highSum += frequencyData[i];
+      const low = Math.min(lowSum / (lowRange * 255), 1);
+      const mid = Math.min(midSum / ((midRange - lowRange) * 255), 1);
+      const high = Math.min(highSum / ((binCount - midRange) * 255), 1);
+
+      return { overall, low, mid, high };
+    }
+
+    class Fluid {
+      constructor(density, numX, numY, h) {
+        this.density = density;
+        this.numX = numX + 2;
+        this.numY = numY + 2;
+        this.numCells = this.numX * this.numY;
+        this.h = h;
+        this.u = new Float32Array(this.numCells);
+        this.v = new Float32Array(this.numCells);
+        this.newU = new Float32Array(this.numCells);
+        this.newV = new Float32Array(this.numCells);
+        this.p = new Float32Array(this.numCells);
+        this.s = new Float32Array(this.numCells);
+        this.m = new Float32Array(this.numCells);
+        this.newM = new Float32Array(this.numCells);
+        this.vorticity = new Float32Array(this.numCells); // New vorticity field
+        this.m.fill(1.0);
+        this.n = this.numY;
+        this.h2 = this.h * 0.5;
+      }
+
+      integrate(dt, gravity) {
+        const n = this.n;
+        for (let i = n + 1; i < this.numCells - n - 1; i++) {
+          if (this.s[i] !== 0.0 && this.s[i - 1] !== 0.0) this.v[i] += gravity * dt;
+        }
+      }
+
+      solveIncompressibility(numIters, dt) {
+        const n = this.n;
+        const cp = this.density * this.h / dt;
+        for (let iter = 0; iter < numIters; iter++) {
+          for (let i = 1; i < this.numX - 1; i++) {
+            for (let j = 1; j < this.numY - 1; j++) {
+              const index = i * n + j;
+              if (this.s[index] === 0.0) continue;
+              const sx0 = this.s[(i - 1) * n + j];
+              const sx1 = this.s[(i + 1) * n + j];
+              const sy0 = this.s[i * n + j - 1];
+              const sy1 = this.s[i * n + j + 1];
+              const sSum = sx0 + sx1 + sy0 + sy1;
+              if (sSum === 0.0) continue;
+              const div = this.u[(i + 1) * n + j] - this.u[index] + this.v[i * n + j + 1] - this.v[index];
+              let pCorr = -div / sSum;
+              pCorr *= scene.overRelaxation;
+              this.p[index] += cp * pCorr;
+              this.u[index] -= sx0 * pCorr;
+              this.u[(i + 1) * n + j] += sx1 * pCorr;
+              this.v[index] -= sy0 * pCorr;
+              this.v[i * n + j + 1] += sy1 * pCorr;
+            }
+          }
+        }
+      }
+
+      extrapolate() {
+        const n = this.n;
+        for (let i = 0; i < this.numX; i++) {
+          this.u[i * n] = this.u[i * n + 1];
+          this.u[i * n + this.numY - 1] = this.u[i * n + this.numY - 2];
+        }
+        for (let j = 0; j < this.numY; j++) {
+          this.v[0 * n + j] = this.v[1 * n + j];
+          this.v[(this.numX - 1) * n + j] = this.v[(this.numX - 2) * n + j];
+        }
+      }
+
+      sampleField(x, y, field) {
+        const n = this.n;
+        const h = this.h;
+        const h1 = 1.0 / h;
+        const h2 = this.h2;
+        x = Math.max(Math.min(x, this.numX * h), h);
+        y = Math.max(Math.min(y, this.numY * h), h);
+        let dx = 0, dy = 0, f;
+        switch (field) {
+          case U_FIELD: f = this.u; dy = h2; break;
+          case V_FIELD: f = this.v; dx = h2; break;
+          case S_FIELD: f = this.m; dx = h2; dy = h2; break;
+        }
+        const x0 = Math.min(Math.floor((x - dx) * h1), this.numX - 1);
+        const tx = ((x - dx) - x0 * h) * h1;
+        const x1 = Math.min(x0 + 1, this.numX - 1);
+        const y0 = Math.min(Math.floor((y - dy) * h1), this.numY - 1);
+        const ty = ((y - dy) - y0 * h) * h1;
+        const y1 = Math.min(y0 + 1, this.numY - 1);
+        const sx = 1.0 - tx;
+        const sy = 1.0 - ty;
+        return sx * sy * f[x0 * n + y0] + tx * sy * f[x1 * n + y0] + tx * ty * f[x1 * n + y1] + sx * ty * f[x0 * n + y1];
+      }
+
+      avgU(i, j) {
+        const n = this.n;
+        return (this.u[i * n + j - 1] + this.u[i * n + j] + this.u[(i + 1) * n + j - 1] + this.u[(i + 1) * n + j]) * 0.25;
+      }
+
+      avgV(i, j) {
+        const n = this.n;
+        return (this.v[(i - 1) * n + j] + this.v[i * n + j] + this.v[(i - 1) * n + j + 1] + this.v[i * n + j + 1]) * 0.25;
+      }
+
+      advectVel(dt) {
+        this.newU.set(this.u);
+        this.newV.set(this.v);
+        const n = this.n;
+        const h = this.h, h2 = this.h2;
+        for (let i = 1; i < this.numX; i++) {
+          for (let j = 1; j < this.numY; j++) {
+            if (this.s[i * n + j] !== 0.0 && this.s[(i - 1) * n + j] !== 0.0 && j < this.numY - 1) {
+              let x = i * h;
+              let y = j * h + h2;
+              let u_val = this.u[i * n + j];
+              let v_val = this.avgV(i, j);
+              x -= dt * u_val;
+              y -= dt * v_val;
+              u_val = this.sampleField(x, y, U_FIELD);
+              this.newU[i * n + j] = u_val;
+            }
+            if (this.s[i * n + j] !== 0.0 && this.s[i * n + j - 1] !== 0.0 && i < this.numX - 1) {
+              let x = i * h + h2;
+              let y = j * h;
+              let u_val = this.avgU(i, j);
+              let v_val = this.v[i * n + j];
+              x -= dt * u_val;
+              y -= dt * v_val;
+              v_val = this.sampleField(x, y, V_FIELD);
+              this.newV[i * n + j] = v_val;
+            }
+          }
+        }
+        this.u.set(this.newU);
+        this.v.set(this.newV);
+      }
+
+      advectSmoke(dt) {
+        this.newM.set(this.m);
+        const n = this.n;
+        const h = this.h, h2 = this.h2;
+        for (let i = 1; i < this.numX - 1; i++) {
+          for (let j = 1; j < this.numY - 1; j++) {
+            const index = i * n + j;
+            if (this.s[index] !== 0.0) {
+              const u_val = (this.u[index] + this.u[(i + 1) * n + j]) * 0.5;
+              const v_val = (this.v[index] + this.v[i * n + j + 1]) * 0.5;
+              const x = i * h + h2 - dt * u_val;
+              const y = j * h + h2 - dt * v_val;
+              this.newM[index] = this.sampleField(x, y, S_FIELD);
+            }
+          }
+        }
+        this.m.set(this.newM);
+      }
+
+      computeVorticity() {
+        const n = this.n;
+        for (let i = 1; i < this.numX - 1; i++) {
+          for (let j = 1; j < this.numY - 1; j++) {
+            const index = i * n + j;
+            if (this.s[index] === 0.0) {
+              this.vorticity[index] = 0;
+              continue;
+            }
+            const du_dy = (this.u[i * n + j + 1] - this.u[i * n + j - 1]) / (2 * this.h);
+            const dv_dx = (this.v[(i + 1) * n + j] - this.v[(i - 1) * n + j]) / (2 * this.h);
+            this.vorticity[index] = dv_dx - du_dy;
+          }
+        }
+      }
+
+      simulate(dt, gravity, numIters) {
+        this.integrate(dt, gravity);
+        this.p.fill(0.0);
+        this.solveIncompressibility(numIters, dt);
+        this.extrapolate();
+        this.advectVel(dt);
+        this.advectSmoke(dt);
+        if (scene.showVorticity) this.computeVorticity();
+      }
+    }
+
+    class VortexPoint {
+      constructor(x, y, strength = 1.0) {
+        this.x = x;
+        this.y = y;
+        this.strength = strength;
+        this.originalX = x;
+        this.originalY = y;
+        this.angle = Math.random() * Math.PI * 2;
+        this.rotationSpeed = 0.01 + Math.random() * 0.02;
+        this.lastSoundLevel = 0;
+      }
+
+      update(soundLevel, dt) {
+        this.angle += this.rotationSpeed * dt * 60;
+        if (soundLevel.overall > this.lastSoundLevel) {
+          this.x += (Math.random() - 0.5) * soundLevel.overall * 0.05;
+          this.y += (Math.random() - 0.5) * soundLevel.overall * 0.05;
+        } else {
+          this.x += (this.originalX - this.x) * 0.01 + Math.cos(this.angle) * 0.0005;
+          this.y += (this.originalY - this.y) * 0.01 + Math.sin(this.angle) * 0.0005;
+        }
+        this.lastSoundLevel = soundLevel.overall * 0.4;
+        this.normalizePosition();
+      }
+
+      normalizePosition() {
+        this.x = Math.max(0.1, Math.min(this.x, simWidth - 0.1));
+        this.y = Math.max(0.1, Math.min(this.y, simHeight - 0.1));
+      }
+    }
+
+    const colorMaps = {
+      default: function(val, minVal, maxVal) {
+        val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
+        const d = maxVal - minVal;
+        val = d === 0.0 ? 0.5 : (val - minVal) / d;
+        const m = 0.25;
+        const num = Math.floor(val / m);
+        const s = (val - num * m) / m;
+        let r, g, b;
+        switch (num) {
+          case 0: r = 0.0; g = s; b = 1.0; break;
+          case 1: r = 0.0; g = 1.0; b = 1.0 - s; break;
+          case 2: r = s; g = 1.0; b = 0.0; break;
+          case 3: r = 1.0; g = 1.0 - s; b = 0.0; break;
+        }
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
+      },
+      thermal: function(val, minVal, maxVal) {
+        val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
+        const d = maxVal - minVal;
+        val = d === 0.0 ? 0.5 : (val - minVal) / d;
+        const m = 0.5;
+        const num = Math.floor(val / m);
+        const s = (val - num * m) / m;
+        let r, g, b;
+        switch (num) {
+          case 0: r = 0.0; g = s; b = 1.0; break;
+          case 1: r = 1.0 - s; g = 1.0; b = 0.0; break;
+        }
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
+      },
+      rainbow: function(val, minVal, maxVal) {
+        val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
+        const d = maxVal - minVal;
+        val = d === 0.0 ? 0.5 : (val - minVal) / d;
+        const m = 0.2;
+        const num = Math.floor(val / m);
+        const s = (val - num * m) / m;
+        let r, g, b;
+        switch (num) {
+          case 0: r = 1.0; g = s; b = 0.0; break;
+          case 1: r = 1.0; g = 1.0; b = s; break;
+          case 2: r = s; g = 1.0; b = 0.0; break;
+          case 3: r = 0.0; g = 1.0; b = s; break;
+          case 4: r = 0.0; g = s; b = 1.0; break;
+          case 5: r = s; g = 0.0; b = 1.0; break;
+        }
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
+      },
+      plasma: function(val, minVal, maxVal) {
+        val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
+        const d = maxVal - minVal;
+        val = d === 0.0 ? 0.5 : (val - minVal) / d;
+        const colors = [
+          [13, 8, 135], [126, 3, 168], [204, 71, 120], [248, 149, 64], [240, 249, 33]
+        ];
+        const segments = colors.length - 1;
+        const segment = Math.min(Math.floor(val * segments), segments - 1);
+        const t = (val * segments) - segment;
+        const c1 = colors[segment];
+        const c2 = colors[segment + 1];
+        return [
+          Math.floor(c1[0] + t * (c2[0] - c1[0])),
+          Math.floor(c1[1] + t * (c2[1] - c1[1])),
+          Math.floor(c1[2] + t * (c2[2] - c1[2])),
+          255
+        ];
+      }
+    };
+
+    let currentColorMap = colorMaps.plasma;
+
+    function getSciColor(val, minVal, maxVal) {
+      return currentColorMap(val, minVal, maxVal);
+    }
+
+    function setColor(r, g, b, a = 1) {
+      c.fillStyle = `rgba(${Math.floor(255 * r)}, ${Math.floor(255 * g)}, ${Math.floor(255 * b)}, ${a})`;
+      c.strokeStyle = `rgba(${Math.floor(255 * r)}, ${Math.floor(255 * g)}, ${Math.floor(255 * b)}, ${a})`;
+    }
+
+    const scene = {
+      gravity: -9.81,
+      dt: 1.0 / 60.0,
+      numIters: 40,
+      frameNr: 0,
+      overRelaxation: 1.9,
+      obstacleX: 0.0,
+      obstacleY: 0.0,
+      obstacleRadius: 0.1,
+      paused: false,
+      sceneNr: 1,
+      showObstacle: false,
+      showStreamlines: false,
+      showVelocities: false,
+      showPressure: false,
+      showSmoke: true,
+      showVorticity: false,
+      showEduMode: false,
+      useVortices: true,
+      vortexStrength: 10.0,
+      fluid: null,
+      vortexPoints: [],
+      customObstacles: []
+    };
+
+    function setupScene(sceneNr = 0) {
+      scene.sceneNr = sceneNr;
+      scene.obstacleRadius = 0.1;
+      scene.overRelaxation = 1.9;
+      scene.dt = 1.0 / 60.0;
+      scene.numIters = 40;
+      let res = (sceneNr === 3) ? 200 : (sceneNr === 0 ? 50 : 100);
+      if (window.innerWidth < 768) res = Math.floor(res * 0.6);
+      const domainHeight = 1.0;
+      const domainWidth = domainHeight / simHeight * simWidth;
+      const h = domainHeight / res;
+      const numX = Math.floor(domainWidth / h);
+      const numY = Math.floor(domainHeight / h);
+      const density = 1000.0;
+
+      scene.fluid = new Fluid(density, numX, numY, h);
+      const f = scene.fluid;
+      const n = f.numY;
+
+      for (let i = 0; i < f.numX; i++) {
+        for (let j = 0; j < f.numY; j++) {
+          f.m[i * n + j] = 0.0;
+        }
+      }
+
+      if (sceneNr === 0) {
+        for (let i = 0; i < f.numX; i++) {
+          for (let j = 0; j < f.numY; j++) {
+            f.s[i * n + j] = (i === 0 || i === f.numX - 1 || j === 0) ? 0.0 : 1.0;
+          }
+        }
+        scene.gravity = -9.81;
+        scene.showPressure = true;
+        scene.showSmoke = true;
+        currentColorMap = colorMaps.plasma;
+      } else if (sceneNr === 1 || sceneNr === 3) {
+        const inVel = 2.0;
+        for (let i = 0; i < f.numX; i++) {
+          for (let j = 0; j < f.numY; j++) {
+            f.s[i * n + j] = (i === 0 || j === 0 || j === f.numY - 1) ? 0.0 : 1.0;
+            if (i === 1) f.u[i * n + j] = inVel;
+          }
+        }
+        setObstacle(0.4, 0.5, true);
+        scene.gravity = 0.0;
+        scene.showSmoke = true;
+        currentColorMap = sceneNr === 3 ? colorMaps.plasma : colorMaps.default;
+      } else if (sceneNr === 2) {
+        scene.gravity = 0.0;
+        scene.overRelaxation = 1.9;
+        scene.showSmoke = true;
+        currentColorMap = colorMaps.plasma;
+      }
+
+      initializeVortexPoints();
+      scene.customObstacles = [];
+      syncUIControls();
+    }
+
+    function initializeVortexPoints() {
+      scene.vortexPoints = [];
+      const centerX = 0.6, centerY = 0.5, radius = 0.1, numPoints = 5;
+      for (let i = 0; i < numPoints; i++) {
+        const angle = (i / numPoints) * 2 * Math.PI;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+        scene.vortexPoints.push(new VortexPoint(x, y, 0.8));
+      }
+    }
+
+    function applyVortexForces(dt) {
+      if (!scene.useVortices) return;
+      const fluid = scene.fluid;
+      const numY = fluid.numY;
+      const cellSize = fluid.h;
+      const vortexStrength = scene.vortexStrength;
+      const soundLevel = getSoundLevel();
+
+      for (const vortex of scene.vortexPoints) {
+        vortex.update(soundLevel, dt);
+        for (let i = 1; i < fluid.numX - 1; i++) {
+          for (let j = 1; j < fluid.numY - 1; j++) {
+            const index = i * numY + j;
+            if (fluid.s[index] === 0.0) continue;
+            const cellCenterX = (i + 0.5) * cellSize;
+            const cellCenterY = (j + 0.5) * cellSize;
+            const dx = cellCenterX - vortex.x;
+            const dy = cellCenterY - vortex.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 0.25) {
+              const forceMagnitude = (0.25 - distance) * vortex.strength * vortexStrength * (soundLevel.overall + 0.1);
+              const forceX = -dy * forceMagnitude / Math.max(distance, 0.001);
+              const forceY = dx * forceMagnitude / Math.max(distance, 0.001);
+              fluid.u[index] += forceX * 0.5;
+              fluid.u[(i + 1) * numY + j] += forceX * 0.5;
+              fluid.v[index] += forceY * 0.5;
+              fluid.v[i * numY + j + 1] += forceY * 0.5;
+            }
+          }
+        }
+      }
+    }
+
+    function setObstacle(x, y, reset, shape = 'circle') {
+      let vx = 0.0, vy = 0.0;
+      if (!reset) {
+        vx = (x - scene.obstacleX) / scene.dt;
+        vy = (y - scene.obstacleY) / scene.dt;
+      }
+      scene.obstacleX = x;
+      scene.obstacleY = y;
+      const r = scene.obstacleRadius;
+      const f = scene.fluid;
+      const n = f.numY;
+
+      if (shape === 'circle') {
+        for (let i = 1; i < f.numX - 2; i++) {
+          for (let j = 1; j < f.numY - 2; j++) {
+            const dx = (i + 0.5) * f.h - x;
+            const dy = (j + 0.5) * f.h - y;
+            if (dx * dx + dy * dy < r * r) {
+              f.s[i * n + j] = 0.0;
+              f.m[i * n + j] = scene.sceneNr === 2 ? 0.5 + 0.5 * Math.sin(0.1 * scene.frameNr) : 1.0;
+              f.u[i * n + j] = vx;
+              f.u[(i + 1) * n + j] = vx;
+              f.v[i * n + j] = vy;
+              f.v[i * n + j + 1] = vy;
+            } else if (reset) {
+              f.s[i * n + j] = 1.0;
+            }
+          }
+        }
+      } else if (shape === 'square') {
+        const halfSize = r;
+        for (let i = 1; i < f.numX - 2; i++) {
+          for (let j = 1; j < f.numY - 2; j++) {
+            const dx = (i + 0.5) * f.h - x;
+            const dy = (j + 0.5) * f.h - y;
+            if (Math.abs(dx) < halfSize && Math.abs(dy) < halfSize) {
+              f.s[i * n + j] = 0.0;
+              f.m[i * n + j] = scene.sceneNr === 2 ? 0.5 + 0.5 * Math.sin(0.1 * scene.frameNr) : 1.0;
+              f.u[i * n + j] = vx;
+              f.u[(i + 1) * n + j] = vx;
+              f.v[i * n + j] = vy;
+              f.v[i * n + j + 1] = vy;
+            } else if (reset) {
+              f.s[i * n + j] = 1.0;
+            }
+          }
+        }
+      }
+      scene.showObstacle = true;
+      if (reset) scene.customObstacles.push({ x, y, shape, radius: r });
+    }
+
+    function applySoundImpulse() {
+      const soundLevel = getSoundLevel();
+      audioIndicator.style.transform = `scale(${1 + soundLevel.overall})`;
+      if (!audioEnabled || soundLevel.overall === 0) return;
+
+      const fluid = scene.fluid;
+      const n = fluid.numY;
+      const impulseStrength = soundLevel.overall * 1000.0;
+
+      // Center the frequency-based impulses in the middle of the screen
+      const centerY = fluid.numY * 0.5;
+      const lowAreaY = centerY; // 15% above center
+      const midAreaY = centerY;                    // Centered
+      const highAreaY = centerY; // 15% below center
+
+      for (let i = 1; i < fluid.numX - 1; i++) {
+        for (let j = 1; j < fluid.numY - 1; j++) {
+          const index = i * n + j;
+          if (fluid.s[index] === 0.0) continue;
+          if (j < lowAreaY && soundLevel.low > 0.2) {
+            fluid.u[index] += impulseStrength * soundLevel.low * (Math.random() - 0.5);
+            fluid.v[index] += impulseStrength * soundLevel.low * (Math.random() - 0.5);
+            if (scene.sceneNr === 2) fluid.m[index] = Math.min(fluid.m[index] + soundLevel.low * 0.1, 1.0);
+          } else if (j >= lowAreaY && j < highAreaY && soundLevel.mid > 0.2) {
+            fluid.u[index] += impulseStrength * soundLevel.mid * (Math.random() - 0.5);
+            fluid.v[index] += impulseStrength * soundLevel.mid * (Math.random() - 0.5);
+            if (scene.sceneNr === 2) fluid.m[index] = Math.min(fluid.m[index] + soundLevel.mid * 0.1, 1.0);
+          } else if (j >= highAreaY && soundLevel.high > 0.2) {
+            fluid.u[index] += impulseStrength * soundLevel.high * (Math.random() - 0.5);
+            fluid.v[index] += impulseStrength * soundLevel.high * (Math.random() - 0.5);
+            if (scene.sceneNr === 2) fluid.m[index] = Math.min(fluid.m[index] + soundLevel.high * 0.1, 1.0);
+          }
+        }
+      }
+    }
+
+    function draw() {
+      if (window.isResizing) return;
+      const bgColor = getComputedStyle(document.body).backgroundColor;
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      c.fillStyle = bgColor;
+      c.fillRect(0, 0, canvas.width, canvas.height);
+
+      const f = scene.fluid;
+      const n = f.numY;
+      const h = f.h;
+
+      let minP = f.p[0], maxP = f.p[0], minVort = f.vorticity[0], maxVort = f.vorticity[0];
+      for (let i = 0; i < f.numCells; i++) {
+        minP = Math.min(minP, f.p[i]);
+        maxP = Math.max(maxP, f.p[i]);
+        minVort = Math.min(minVort, f.vorticity[i]);
+        maxVort = Math.max(maxVort, f.vorticity[i]);
+      }
+
+      const width = canvas.width;
+      const height = canvas.height;
+      const id = c.createImageData(width, height);
+      const data = id.data;
+      const cellWidth = Math.ceil(cScale * h);
+      const cellHeight = Math.ceil(cScale * h);
+
+      for (let i = 0; i < f.numX; i++) {
+        for (let j = 0; j < f.numY; j++) {
+          const idx = i * n + j;
+          let color = [255, 255, 255, 255];
+          if (scene.showVorticity) {
+            const vort = f.vorticity[idx];
+            color = getSciColor(vort, minVort, maxVort);
+          } else if (scene.showPressure) {
+            const p = f.p[idx];
+            const sVal = f.m[idx];
+            color = getSciColor(p, minP, maxP);
+            if (scene.showSmoke) {
+              color[0] = Math.max(0, color[0] - 255 * sVal);
+              color[1] = Math.max(0, color[1] - 255 * sVal);
+              color[2] = Math.max(0, color[2] - 255 * sVal);
+            }
+          } else if (scene.showSmoke) {
+            const sVal = f.m[idx];
+            color = scene.sceneNr === 2 ? getSciColor(sVal, 0, 1) : getSciColor(sVal, 0, 1);
+          } else {
+            color = f.s[idx] === 0.0 ? [0, 0, 0, 255] : [255, 255, 255, 255];
+          }
+
+          const x = Math.floor(cX(i * h));
+          const y = Math.floor(cY((j + 1) * h));
+          if (x < 0 || x >= width || y < 0 || y >= height) continue;
+
+          for (let yi = 0; yi < cellHeight; yi++) {
+            if (y - yi < 0 || y - yi >= height) continue;
+            const rowOffset = 4 * ((y - yi) * width + x);
+            for (let xi = 0; xi < cellWidth; xi++) {
+              if (x + xi >= width) break;
+              const pixelOffset = rowOffset + 4 * xi;
+              data[pixelOffset] = color[0];
+              data[pixelOffset + 1] = color[1];
+              data[pixelOffset + 2] = color[2];
+              data[pixelOffset + 3] = 255;
+            }
+          }
+        }
+      }
+
+      c.putImageData(id, 0, 0);
+
+      if (scene.useVortices) {
+        c.lineWidth = 2;
+        const soundLevel = getSoundLevel();
+        for (const vortex of scene.vortexPoints) {
+          const x = cX(vortex.x);
+          const y = cY(vortex.y);
+          const intensity = Math.min(0.2 + soundLevel.overall * 3, 1.0);
+          c.beginPath();
+          c.arc(x, y, 10, 0, Math.PI * 2);
+          c.strokeStyle = `rgba(255, 255, 0, ${intensity})`;
+          c.stroke();
+          c.beginPath();
+          const radius = 15;
+          for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+            c.moveTo(x, y);
+            c.lineTo(x + radius * Math.cos(angle), y + radius * Math.sin(angle));
+          }
+          c.strokeStyle = `rgba(255, 200, 0, ${intensity * 0.7})`;
+          c.stroke();
+        }
+      }
+
+      if (scene.showStreamlines) drawStreamlines();
+      if (scene.showVelocities) drawVelocities();
+      if (scene.showEduMode) drawEducationalOverlay();
+    }
+
+    function drawStreamlines() {
+      const f = scene.fluid;
+      const n = f.numY;
+      const h = f.h;
+      c.strokeStyle = "rgba(0, 255, 0, 0.7)";
+      c.lineWidth = 1;
+      const seedSpacing = Math.floor(f.numX / 20);
+      for (let i = 0; i < f.numX; i += seedSpacing) {
+        for (let j = 0; j < f.numY; j += seedSpacing) {
+          const xStart = (i + 0.5) * h;
+          const yStart = (j + 0.5) * h;
+          traceStreamline(xStart, yStart, f, h, n);
+        }
+      }
+    }
+
+    function traceStreamline(x, y, f, h, n) {
+      const maxSteps = 100;
+      const stepSize = h * 0.5;
+      let steps = 0;
+      c.beginPath();
+      c.moveTo(cX(x), cY(y));
+      while (steps < maxSteps) {
+        const u = f.sampleField(x, y, U_FIELD);
+        const v = f.sampleField(x, y, V_FIELD);
+        x += u * stepSize;
+        y += v * stepSize;
+        if (x < 0 || x > f.numX * h || y < 0 || y > f.numY * h) break;
+        c.lineTo(cX(x), cY(y));
+        steps++;
+      }
+      c.stroke();
+    }
+
+    function drawVelocities() {
+      const f = scene.fluid;
+      const n = f.numY;
+      const h = f.h;
+      c.strokeStyle = "#000";
+      const scale = 0.02;
+      const maxArrowLength = 20;
+      const skipFactor = Math.max(1, Math.floor(f.numX / 50));
+      for (let i = 1; i < f.numX; i += skipFactor) {
+        for (let j = 1; j < f.numY; j += skipFactor) {
+          const index = i * n + j;
+          const u_val = f.u[index];
+          const v_val = f.v[index];
+          const velMagnitude = Math.sqrt(u_val * u_val + v_val * v_val);
+          if (velMagnitude > 0.05) {
+            const x = cX((i + 0.5) * h);
+            const y = cY((j + 0.5) * h);
+            let vx = u_val * scale * cScale;
+            let vy = -v_val * scale * cScale;
+            const arrowLength = Math.sqrt(vx * vx + vy * vy);
+            if (arrowLength > maxArrowLength) {
+              const reductionFactor = maxArrowLength / arrowLength;
+              vx *= reductionFactor;
+              vy *= reductionFactor;
+            }
+            c.beginPath();
+            c.moveTo(x, y);
+            c.lineTo(x + vx, y + vy);
+            const headSize = 4;
+            const angle = Math.atan2(vy, vx);
+            c.lineTo(x + vx - headSize * Math.cos(angle - Math.PI / 6), y + vy - headSize * Math.sin(angle - Math.PI / 6));
+            c.moveTo(x + vx, y + vy);
+            c.lineTo(x + vx - headSize * Math.cos(angle + Math.PI / 6), y + vy - headSize * Math.sin(angle + Math.PI / 6));
+            c.stroke();
+          }
+        }
+      }
+    }
+
+    function drawEducationalOverlay() {
+      const f = scene.fluid;
+      const n = f.numY;
+      const h = f.h;
+      c.font = "12px Arial";
+      c.fillStyle = "rgba(255, 255, 255, 0.8)";
+      c.textAlign = "center";
+
+      for (let i = 0; i < f.numX; i += Math.floor(f.numX / 10)) {
+        for (let j = 0; j < f.numY; j += Math.floor(f.numY / 10)) {
+          const index = i * n + j;
+          if (f.s[index] === 0.0) continue;
+          const x = cX((i + 0.5) * h);
+          const y = cY((j + 0.5) * h);
+          if (scene.showPressure) c.fillText(`P: ${f.p[index].toFixed(2)}`, x, y);
+          else if (scene.showVorticity) c.fillText(`Vort: ${f.vorticity[index].toFixed(2)}`, x, y);
+          else if (scene.showVelocities) c.fillText(`U: ${f.u[index].toFixed(2)}`, x, y + 12);
+        }
+      }
+    }
+
+    let lastTime = 0, frameCount = 0, fps = 0, lastFpsUpdate = 0;
+    const fpsUpdateInterval = 500;
+
+    function updateFps(timestamp) {
+      if (!lastTime) {
+        lastTime = timestamp;
+        return;
+      }
+      frameCount++;
+      if (timestamp - lastFpsUpdate > fpsUpdateInterval) {
+        fps = Math.round(frameCount * 1000 / (timestamp - lastFpsUpdate));
+        fpsCounter.textContent = `FPS: ${fps}`;
+        frameCount = 0;
+        lastFpsUpdate = timestamp;
+      }
+    }
+
+    let lastTimestamp = 0;
+
+    function simulate(dt) {
+      if (!scene.paused) {
+        applyVortexForces(dt);
+        scene.fluid.simulate(scene.dt, scene.gravity, scene.numIters);
+        scene.frameNr++;
+      }
+    }
+
+    function update(timestamp) {
+      if (window.isResizing) {
+        requestAnimationFrame(update);
+        return;
+      }
+      const dt = (timestamp - lastTimestamp) / 1000;
+      lastTimestamp = timestamp;
+      updateFps(timestamp);
+      applySoundImpulse();
+      simulate(dt);
+      draw();
+      requestAnimationFrame(update);
+    }
+
+    let mouseDown = false, touchId = null, drawingShape = 'circle';
+
+    function startDrag(x, y) {
+      const bounds = canvas.getBoundingClientRect();
+      let mx = x - bounds.left;
+      let my = y - bounds.top;
+      mouseDown = true;
+      x = mx / cScale;
+      y = (canvas.height - my) / cScale;
+      drawingShape = Math.random() > 0.5 ? 'circle' : 'square'; // Random shape in paint mode
+      setObstacle(x, y, true, drawingShape);
+    }
+
+    function drag(x, y) {
+      if (mouseDown) {
+        const bounds = canvas.getBoundingClientRect();
+        let mx = x - bounds.left;
+        let my = y - bounds.top;
+        x = mx / cScale;
+        y = (canvas.height - my) / cScale;
+        setObstacle(x, y, false, drawingShape);
+      }
+    }
+
+    function endDrag() {
+      mouseDown = false;
+      touchId = null;
+    }
+
+    canvas.addEventListener('mousedown', e => {
+      e.preventDefault();
+      startDrag(e.clientX, e.clientY);
+    });
+    canvas.addEventListener('mouseup', endDrag);
+    canvas.addEventListener('mousemove', e => drag(e.clientX, e.clientY));
+    canvas.addEventListener('mouseleave', endDrag);
+    canvas.addEventListener('touchstart', e => {
+      e.preventDefault();
+      if (touchId === null) {
+        const touch = e.changedTouches[0];
+        touchId = touch.identifier;
+        startDrag(touch.clientX, touch.clientY);
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchend', e => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === touchId) {
+          endDrag();
+          break;
+        }
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === touchId) {
+          drag(touch.clientX, touch.clientY);
+          break;
+        }
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchcancel', endDrag);
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'p' || e.key === 'P') scene.paused = !scene.paused;
+    });
+
+    function syncUIControls() {
+      streamButton.checked = scene.showStreamlines;
+      velocityButton.checked = scene.showVelocities;
+      pressureButton.checked = scene.showPressure;
+      smokeButton.checked = scene.showSmoke;
+      vorticityButton.checked = scene.showVorticity;
+      eduModeButton.checked = scene.showEduMode;
+      vortexButton.checked = scene.useVortices;
+      vortexStrengthSlider.value = scene.vortexStrength;
+      audioButton.checked = audioEnabled;
+    }
+
+    streamButton.addEventListener('change', function() { scene.showStreamlines = this.checked; });
+    velocityButton.addEventListener('change', function() { scene.showVelocities = this.checked; });
+    pressureButton.addEventListener('change', function() { scene.showPressure = this.checked; });
+    smokeButton.addEventListener('change', function() { scene.showSmoke = this.checked; });
+    vorticityButton.addEventListener('change', function() { scene.showVorticity = this.checked; });
+    eduModeButton.addEventListener('change', function() { scene.showEduMode = this.checked; });
+    vortexButton.addEventListener('change', function() { scene.useVortices = this.checked; });
+    vortexStrengthSlider.addEventListener('input', function() { scene.vortexStrength = parseFloat(this.value); });
+    audioButton.addEventListener('change', function() {
+      audioEnabled = this.checked;
+      audioIndicator.style.display = audioEnabled ? 'flex' : 'none';
+    });
+    audioSensitivitySlider.addEventListener('input', function() { audioSensitivity = parseFloat(this.value) / 100; });
+    micPermissionBtn.addEventListener('click', initAudio);
+
+    controlsToggle.addEventListener('click', function() {
+      const isVisible = controlsPanel.style.display !== 'none';
+      controlsPanel.style.display = isVisible ? 'none' : 'block';
+      this.textContent = isVisible ? '⚙️' : '×';
+    });
+
+    document.querySelectorAll('input[name="colorMap"]').forEach(radio => {
+      radio.addEventListener('change', function() { currentColorMap = colorMaps[this.value]; });
+    });
+
+    setupScene(2);
+    setTimeout(() => {
+      if (checkAudioSupport()) initAudio();
+      else showAudioNotAvailable();
+      loadingIndicator.style.display = 'none';
+      requestAnimationFrame(update);
+    }, 5);
+  </script>
+</body>
+</html>
