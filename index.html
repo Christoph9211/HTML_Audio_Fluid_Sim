@@ -368,6 +368,14 @@
     
     // ----- Fluid Simulation Code -----
     class Fluid {
+      constructor(density, numX, numY, h) {
+        this.density = density;
+        this.numX = numX + 2; 
+        this.numY = numY + 2;
+        this.numCells = this.numX * this.numY;
+        this.h = h;
+        this.minP = Infinity;
+        this.maxP = -Infinity;
       /**
        * Initialize a fluid simulation with the given parameters.
        * 
@@ -376,12 +384,7 @@
        * @param {number} numY - The number of cells in the y-direction.
        * @param {number} h - The width and height of each cell.
        */
-      constructor(density, numX, numY, h) {
-        this.density = density;
-        this.numX = numX + 2; 
-        this.numY = numY + 2;
-        this.numCells = this.numX * this.numY;
-        this.h = h;
+
         
         // Use typed arrays for better performance
         this.u = new Float32Array(this.numCells);
@@ -449,6 +452,8 @@
               pCorr *= scene.overRelaxation;
               
               this.p[index] += cp * pCorr;
+              this.minP = Math.min(this.minP, this.p[index]);
+              this.maxP = Math.max(this.maxP, this.p[index]);
               this.u[index] -= sx0 * pCorr;
               this.u[(i+1)*n + j] += sx1 * pCorr;
               this.v[index] -= sy0 * pCorr;
@@ -642,6 +647,8 @@
       simulate(dt, gravity, numIters) {
         this.integrate(dt, gravity);
         this.p.fill(0.0);
+        this.minP = Infinity;
+        this.maxP = -Infinity;
         this.solveIncompressibility(numIters, dt);
         this.extrapolate();
         this.advectVel(dt);
@@ -702,7 +709,6 @@
     
     // ----- Visualization and Color Helpers -----
     const colorMaps = {
-      // Default scientific colormap (blue-cyan-green-yellow-red)
       default: function(val, minVal, maxVal) {
         val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
         const d = maxVal - minVal;
@@ -711,18 +717,14 @@
         const num = Math.floor(val / m);
         const s = (val - num * m) / m;
         let r, g, b;
-        
-        switch(num) {
+        switch (num) {
           case 0: r = 0.0; g = s; b = 1.0; break;
           case 1: r = 0.0; g = 1.0; b = 1.0 - s; break;
           case 2: r = s; g = 1.0; b = 0.0; break;
           case 3: r = 1.0; g = 1.0 - s; b = 0.0; break;
         }
-        
-        return [Math.floor(255*r), Math.floor(255*g), Math.floor(255*b), 255];
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
       },
-
-      // Thermal colormap (blue-white-red)
       thermal: function(val, minVal, maxVal) {
         val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
         const d = maxVal - minVal;
@@ -732,8 +734,8 @@
         const s = (val - num * m) / m;
         let r, g, b;
         switch (num) {
-          case 0: r = 0.0; g = s * 0.8 + 0.2; b = 1.0; break;
-          case 1: r = 1.0 - s * 0.8; g = 1.0; b = 0.0; break;
+          case 0: r = 0.0; g = s; b = 1.0; break;
+          case 1: r = 1.0 - s; g = 1.0; b = 0.0; break;
         }
         return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
       },
@@ -746,40 +748,27 @@
         const s = (val - num * m) / m;
         let r, g, b;
         switch (num) {
-          case 0: r = 1.0; g = s * 0.8 + 0.2; b = 0.0; break;
-          case 1: r = 1.0; g = 1.0; b = s * 0.8 + 0.2; break;
-          case 2: r = s * 0.8 + 0.2; g = 1.0; b = 0.0; break;
-          case 3: r = 0.0; g = 1.0; b = s * 0.8 + 0.2; break;
-          case 4: r = 0.0; g = s * 0.8 + 0.2; b = 1.0; break;
-          case 5: r = s * 0.8 + 0.2; g = 0.0; b = 1.0; break;
+          case 0: r = 1.0; g = s; b = 0.0; break;
+          case 1: r = 1.0; g = 1.0; b = s; break;
+          case 2: r = s; g = 1.0; b = 0.0; break;
+          case 3: r = 0.0; g = 1.0; b = s; break;
+          case 4: r = 0.0; g = s; b = 1.0; break;
+          case 5: r = s; g = 0.0; b = 1.0; break;
         }
         return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
       },
-      
-      // Plasma-like colormap (purple-magenta-orange-yellow)
       plasma: function(val, minVal, maxVal) {
         val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
         const d = maxVal - minVal;
         val = d === 0.0 ? 0.5 : (val - minVal) / d;
-        
-        // Base colors for interpolation
         const colors = [
-          [13, 8, 135],    // Dark purple
-          [126, 3, 168],   // Purple
-          [204, 71, 120],  // Magenta
-          [248, 149, 64],  // Orange
-          [240, 249, 33]   // Yellow
+          [13, 8, 135], [126, 3, 168], [204, 71, 120], [248, 149, 64], [240, 249, 33]
         ];
-        
-        // Find segment and interpolation factor
         const segments = colors.length - 1;
         const segment = Math.min(Math.floor(val * segments), segments - 1);
         const t = (val * segments) - segment;
-        
-        // Interpolate between colors
         const c1 = colors[segment];
         const c2 = colors[segment + 1];
-        
         return [
           Math.floor(c1[0] + t * (c2[0] - c1[0])),
           Math.floor(c1[1] + t * (c2[1] - c1[1])),
@@ -819,6 +808,7 @@
     
     // ----- Scene and Rendering -----
     const scene = {
+      fluidPressureRange: { minP: Infinity, maxP: -Infinity },
       gravity: -9.81,
       dt: 1.0 / 60.0,
       numIters: 40,
@@ -854,7 +844,7 @@
       scene.numIters = 40;
       
       // Different resolution based on scene type
-      let res = 100;
+      let res = (sceneNr === 3) ? 150 : (sceneNr === 0 ? 100 : 100);
       
       // For mobile devices, reduce resolution to improve performance
       if (window.innerWidth < 768) {
@@ -1121,12 +1111,7 @@
       const h = f.h;
       
       // Find min/max pressure for color scaling
-      let minP = f.p[0], maxP = f.p[0];
-      
-      for (let i = 0; i < f.numCells; i++) {
-        minP = Math.min(minP, f.p[i]);
-        maxP = Math.max(maxP, f.p[i]);
-      }
+      const { minP, maxP } = scene.fluidPressureRange;
       
       // Create image data for pixel manipulation - big performance win vs. drawing rects
       const width = canvas.width;
@@ -1389,6 +1374,8 @@
       if (!scene.paused) {
         applyVortexForces(dt);
         scene.fluid.simulate(scene.dt, scene.gravity, scene.numIters);
+        scene.fluidPressureRange.minP = scene.fluid.minP;
+        scene.fluidPressureRange.maxP = scene.fluid.maxP;
         scene.frameNr++;
       }
     }
