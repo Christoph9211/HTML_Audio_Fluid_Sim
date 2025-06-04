@@ -399,7 +399,22 @@
         this.m.fill(0.0); // Initialize smoke to 0 (clear) by default
         
         this.n = this.numY; 
-        this.h2 = this.h * 0.5; 
+        this.h2 = this.h * 0.5;
+      }
+
+      computeMaxVelocity() {
+        const n = this.n;
+        let maxVel = 0.0;
+        for (let i = 1; i < this.numX - 1; i++) {
+          for (let j = 1; j < this.numY - 1; j++) {
+            if (this.s[i*n + j] === 0.0) continue;
+            const u = this.u[i*n + j];
+            const v = this.v[i*n + j];
+            const mag = Math.hypot(u, v);
+            if (mag > maxVel) maxVel = mag;
+          }
+        }
+        return maxVel;
       }
       
       integrate(dt, gravity) {
@@ -1213,6 +1228,7 @@
     
     // ----- Main Simulation Loop -----
     const MAX_SIMULATION_DT = 1.0 / 60.0; // Limit each physics step
+    const CFL_NUMBER = 0.5; // Safety factor for adaptive stepping
     let lastTimestamp = 0;
 
     function stepSimulation(totalDt) {
@@ -1220,13 +1236,20 @@
 
       let accumulatedTime = 0;
       while (accumulatedTime < totalDt) {
-        const currentSubStepDt = Math.min(MAX_SIMULATION_DT, totalDt - accumulatedTime);
+        let dt = Math.min(MAX_SIMULATION_DT, totalDt - accumulatedTime);
+
+        const maxVel = scene.fluid.computeMaxVelocity();
+        if (maxVel > 0) {
+          const cflDt = CFL_NUMBER * scene.fluid.h / maxVel;
+          dt = Math.min(dt, cflDt);
+        }
+
         if (!scene.paused) {
-          if (scene.useVortices) applyVortexForces(currentSubStepDt);
-          scene.fluid.simulate(currentSubStepDt, scene.gravity, scene.numIters);
+          if (scene.useVortices) applyVortexForces(dt);
+          scene.fluid.simulate(dt, scene.gravity, scene.numIters);
           scene.frameNr++;
         }
-        accumulatedTime += currentSubStepDt;
+        accumulatedTime += dt;
       }
     }
     function update(timestamp) {
