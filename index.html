@@ -1206,32 +1206,22 @@
     }
     
     // ----- Main Simulation Loop -----
+    const MAX_SIMULATION_DT = 1.0 / 60.0; // Limit each physics step
     let lastTimestamp = 0;
-    function stepSimulation(dt) { 
-      if (!scene.paused && scene.fluid) {
-        if (scene.useVortices) applyVortexForces(dt);
-        scene.fluid.simulate(scene.dt, scene.gravity, scene.numIters); 
-        scene.frameNr++;
-      }
+
+    function stepSimulation(totalDt) {
+      if (!scene.fluid) return;
 
       let accumulatedTime = 0;
-
-      while (accumulatedTime < totalDeltaTime) {
-        // Determine the time step for this sub-step
-        const currentSubStepDt = Math.min(MAX_SIMULATION_DT, totalDeltaTime - accumulatedTime);
-
-        // It's crucial that vortex forces and other per-step physics updates
-        // also use this smaller currentSubStepDt
-        if (scene.useVortices) {
-            applyVortexForces(currentSubStepDt); // Pass the sub-step dt
+      while (accumulatedTime < totalDt) {
+        const currentSubStepDt = Math.min(MAX_SIMULATION_DT, totalDt - accumulatedTime);
+        if (!scene.paused) {
+          if (scene.useVortices) applyVortexForces(currentSubStepDt);
+          scene.fluid.simulate(currentSubStepDt, scene.gravity, scene.numIters);
+          scene.frameNr++;
         }
-
-        // The core fluid simulation now runs with the smaller, stabler dt
-        scene.fluid.simulate(currentSubStepDt, scene.gravity, scene.numIters);
-
         accumulatedTime += currentSubStepDt;
       }
-      scene.frameNr++; // Increment frame number once per visual frame
     }
     function update(timestamp) {
       if (window.isResizing) {
