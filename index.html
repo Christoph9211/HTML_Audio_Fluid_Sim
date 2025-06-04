@@ -164,6 +164,9 @@
     const audioControlsSection = document.getElementById("audioControlsSection");
     const noAudioMessage = document.getElementById("noAudioMessage");
     const micPermissionBtn = document.getElementById("micPermissionBtn");
+
+    // Reusable ImageData for drawing to avoid per-frame allocations
+    let imageData;
     
     // Setup canvas and resize handling
     function setupCanvas() {
@@ -176,6 +179,9 @@
       c.fillStyle = bgColor;
       c.clearRect(0, 0, canvas.width, canvas.height);
       c.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Re-create ImageData when canvas size changes
+      imageData = c.createImageData(canvas.width, canvas.height);
     }
     
     // Resize canvas when window size changes - with debounce
@@ -1003,8 +1009,8 @@
       }
 
       const width = canvas.width; const height = canvas.height;
-      const id = c.createImageData(width, height); 
-      const data = id.data; 
+      const id = imageData;
+      const data = id.data;
       
       const cellWidthPx = Math.ceil(cScale * h);  
       const cellHeightPx = Math.ceil(cScale * h); 
