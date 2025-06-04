@@ -1234,22 +1234,24 @@
     function stepSimulation(totalDt) {
       if (!scene.fluid) return;
 
+      // Calculate a safe timestep once per frame rather than every sub-step
+      const maxVel = scene.fluid.computeMaxVelocity();
+      let dt = MAX_SIMULATION_DT;
+      if (maxVel > 0) {
+        const cflDt = CFL_NUMBER * scene.fluid.h / maxVel;
+        dt = Math.min(dt, cflDt);
+      }
+
       let accumulatedTime = 0;
       while (accumulatedTime < totalDt) {
-        let dt = Math.min(MAX_SIMULATION_DT, totalDt - accumulatedTime);
-
-        const maxVel = scene.fluid.computeMaxVelocity();
-        if (maxVel > 0) {
-          const cflDt = CFL_NUMBER * scene.fluid.h / maxVel;
-          dt = Math.min(dt, cflDt);
-        }
+        const stepDt = Math.min(dt, totalDt - accumulatedTime);
 
         if (!scene.paused) {
-          if (scene.useVortices) applyVortexForces(dt);
-          scene.fluid.simulate(dt, scene.gravity, scene.numIters);
+          if (scene.useVortices) applyVortexForces(stepDt);
+          scene.fluid.simulate(stepDt, scene.gravity, scene.numIters);
           scene.frameNr++;
         }
-        accumulatedTime += dt;
+        accumulatedTime += stepDt;
       }
     }
     function update(timestamp) {
