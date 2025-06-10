@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Fluid Simulation Reacting to Sound</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <link rel="stylesheet" crossorigin href="./assets/main-DCcYU__V.css">
   </head>
 <body>
@@ -1233,6 +1234,14 @@
 
     function stepSimulation(totalDt) {
       if (!scene.fluid) return;
+
+      // Calculate a safe timestep once per frame rather than every sub-step
+      const maxVel = scene.fluid.computeMaxVelocity();
+      let dt = MAX_SIMULATION_DT;
+      if (maxVel > 0) {
+        const cflDt = CFL_NUMBER * scene.fluid.h / maxVel;
+        dt = Math.min(dt, cflDt);
+      }
 
       let accumulatedTime = 0;
       while (accumulatedTime < totalDt) {
