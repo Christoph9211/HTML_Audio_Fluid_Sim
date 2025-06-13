@@ -5,7 +5,7 @@
   <title>Fluid Simulation Reacting to Sound</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <link rel="stylesheet" crossorigin href="./dist/output.css">
+    <link rel="stylesheet" crossorigin href="./output.css">
   </head>
 <body>
   <div id="loadingIndicator" class="loading-indicator">
@@ -459,41 +459,34 @@
         }
       }
       
-      sampleField(x, y, field) {
+      _sample(x, y, arr, dx, dy) {
         const n = this.n;
         const h = this.h;
-        const h1 = 1.0 / h; 
-        const h2 = this.h2; 
-        
+        const h1 = 1.0 / h;
+
         x = Math.max(Math.min(x, this.numX * h), h);
         y = Math.max(Math.min(y, this.numY * h), h);
-        
-        let dx = 0, dy = 0; 
-        let f_array; 
-        
-        switch (field) {
-          case U_FIELD: f_array = this.u; dy = h2; break; 
-          case V_FIELD: f_array = this.v; dx = h2; break; 
-          case S_FIELD: f_array = this.m; dx = h2; dy = h2; break; 
-          default: f_array = this.m; dx = h2; dy = h2; break; // Should not happen
-        }
-        
-        const x0 = Math.min(Math.floor((x-dx)*h1), this.numX-2); // Ensure x0 and x1 are valid indices
-        const tx = ((x-dx) - x0*h) * h1; 
-        const x1 = Math.min(x0 + 1, this.numX-1); 
-        
-        const y0 = Math.min(Math.floor((y-dy)*h1), this.numY-2); // Ensure y0 and y1 are valid indices
-        const ty = ((y-dy) - y0*h) * h1; 
-        const y1 = Math.min(y0 + 1, this.numY-1); 
-        
+
+        const x0 = Math.min(Math.floor((x - dx) * h1), this.numX - 2);
+        const tx = ((x - dx) - x0 * h) * h1;
+        const x1 = Math.min(x0 + 1, this.numX - 1);
+
+        const y0 = Math.min(Math.floor((y - dy) * h1), this.numY - 2);
+        const ty = ((y - dy) - y0 * h) * h1;
+        const y1 = Math.min(y0 + 1, this.numY - 1);
+
         const sx = 1.0 - tx;
         const sy = 1.0 - ty;
-        
-        return sx*sy * f_array[x0*n + y0] +
-               tx*sy * f_array[x1*n + y0] +
-               tx*ty * f_array[x1*n + y1] +
-               sx*ty * f_array[x0*n + y1];
+
+        return sx * sy * arr[x0 * n + y0] +
+               tx * sy * arr[x1 * n + y0] +
+               tx * ty * arr[x1 * n + y1] +
+               sx * ty * arr[x0 * n + y1];
       }
+
+      sampleU(x, y) { return this._sample(x, y, this.u, 0.0, this.h2); }
+      sampleV(x, y) { return this._sample(x, y, this.v, this.h2, 0.0); }
+      sampleM(x, y) { return this._sample(x, y, this.m, this.h2, this.h2); }
       
       avgU(i, j) {
         const n = this.n;
@@ -514,60 +507,71 @@
         const n = this.n;
         const h = this.h, h2 = this.h2; 
         
-        for (let i = 1; i < this.numX; i++) { 
-          for (let j = 1; j < this.numY; j++) { 
-            
-            if (this.s[i*n + j] !== 0.0 && this.s[(i-1)*n + j] !== 0.0 && j < this.numY - 1) { 
-              let x_pos = i * h; 
-              let y_pos = j * h + h2; 
-              
-              let u_val = this.u[i*n + j];
-              let v_val = this.avgV(i, j); 
-              
-              x_pos = x_pos - dt*u_val;
-              y_pos = y_pos - dt*v_val;
-              
-              this.newU[i*n + j] = this.sampleField(x_pos, y_pos, U_FIELD);
+        const s = this.s, u = this.u, v = this.v;
+        const newU = this.newU, newV = this.newV;
+        const numX = this.numX, numY = this.numY;
+
+        for (let i = 1; i < numX; i++) {
+          const base = i * n;
+          const basePrev = (i - 1) * n;
+          for (let j = 1; j < numY; j++) {
+            const index = base + j;
+
+            if (s[index] !== 0.0 && s[basePrev + j] !== 0.0 && j < numY - 1) {
+              let x_pos = i * h;
+              let y_pos = j * h + h2;
+
+              const u_val = u[index];
+              const v_val = this.avgV(i, j);
+
+              x_pos -= dt * u_val;
+              y_pos -= dt * v_val;
+
+              newU[index] = this.sampleU(x_pos, y_pos);
             }
-            
-            if (this.s[i*n + j] !== 0.0 && this.s[i*n + j-1] !== 0.0 && i < this.numX - 1) { 
-              let x_pos = i * h + h2; 
-              let y_pos = j * h; 
-              
-              let u_val = this.avgU(i, j); 
-              let v_val = this.v[i*n + j];
-              
-              x_pos = x_pos - dt*u_val;
-              y_pos = y_pos - dt*v_val;
-              
-              this.newV[i*n + j] = this.sampleField(x_pos, y_pos, V_FIELD);
+
+            if (s[index] !== 0.0 && s[index - 1] !== 0.0 && i < numX - 1) {
+              let x_pos = i * h + h2;
+              let y_pos = j * h;
+
+              const u_val = this.avgU(i, j);
+              const v_val = v[index];
+
+              x_pos -= dt * u_val;
+              y_pos -= dt * v_val;
+
+              newV[index] = this.sampleV(x_pos, y_pos);
             }
           }
         }
-        this.u.set(this.newU);
-        this.v.set(this.newV);
+        this.u.set(newU);
+        this.v.set(newV);
       }
       
       advectSmoke(dt) {
-        this.newM.set(this.m); 
+        this.newM.set(this.m);
         const n = this.n;
-        const h = this.h, h2 = this.h2; 
-        
-        for (let i = 1; i < this.numX-1; i++) { 
-          for (let j = 1; j < this.numY-1; j++) {
-            const index = i*n + j;
-            if (this.s[index] !== 0.0) { 
-              const u_val = (this.u[index] + this.u[(i+1)*n + j]) * 0.5; 
-              const v_val = (this.v[index] + this.v[i*n + j+1]) * 0.5; 
-              
-              let x_pos = i*h + h2 - dt*u_val;
-              let y_pos = j*h + h2 - dt*v_val;
-              
-              this.newM[index] = this.sampleField(x_pos, y_pos, S_FIELD);
+        const h = this.h, h2 = this.h2;
+        const s = this.s, u = this.u, v = this.v, newM = this.newM;
+        const numX = this.numX - 1, numY = this.numY - 1;
+
+        for (let i = 1; i < numX; i++) {
+          const base = i * n;
+          const baseNext = (i + 1) * n;
+          for (let j = 1; j < numY; j++) {
+            const index = base + j;
+            if (s[index] !== 0.0) {
+              const u_val = (u[index] + u[baseNext + j]) * 0.5;
+              const v_val = (v[index] + v[base + j + 1]) * 0.5;
+
+              let x_pos = i * h + h2 - dt * u_val;
+              let y_pos = j * h + h2 - dt * v_val;
+
+              newM[index] = this.sampleM(x_pos, y_pos);
             }
           }
         }
-        this.m.set(this.newM);
+        this.m.set(newM);
       }
       
       computeVorticity() {
@@ -1129,8 +1133,8 @@
       let currentX = x; let currentY = y;
       c.beginPath(); c.moveTo(cX(currentX), cY(currentY)); 
       for (let steps = 0; steps < maxSteps; steps++) {
-        const u = f.sampleField(currentX, currentY, U_FIELD);
-        const v = f.sampleField(currentX, currentY, V_FIELD);
+        const u = f.sampleU(currentX, currentY);
+        const v = f.sampleV(currentX, currentY);
         const speed = Math.sqrt(u*u + v*v);
         if (speed < 0.00001) break; 
         const dx = (u / speed) * stepSize; const dy = (v / speed) * stepSize;
