@@ -4,4 +4,3 @@ launch.json
 node_modules
 .vscode
 .vercel
-dist
