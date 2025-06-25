@@ -23,7 +23,9 @@
   },
   "homepage": "https://github.com/Christoph9211/HTML_Audio_Fluid_Sim#readme",
   "devDependencies": {
-    "vite": "^6.3.0"
+    "vite": "^6.3.0",
+    "postcss": "^8.4.32",
+    "autoprefixer": "^10.4.16"
   },
   "dependencies": {
     "serve": "^14.2.4",
