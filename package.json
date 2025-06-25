@@ -17,7 +17,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/Christoph9211/HTML_Audio_Fluid_Sim/issues"
   },
@@ -28,21 +28,5 @@
   "dependencies": {
     "serve": "^14.2.4",
     "tailwindcss": "^3.3.5"
-  },
-  "vite": {
-    "server": {
-      "port": 3000
-    },
-    "build": {
-      "outDir": "dist"
-    },
-    "plugins": [],
-    "css": {
-      "preprocessorOptions": {
-        "scss": {
-          "additionalData": "@import 'src/styles/variables.scss';"
-        }
-      }
-    }
   }
 }

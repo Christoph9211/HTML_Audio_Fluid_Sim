@@ -15,13 +15,6 @@ export default defineConfig({
       }
     }
   },
-  css: {
-    preprocessorOptions: {
-      scss: {
-        additionalData: '@import "src/styles/variables.scss";'
-      }
-    }
-  },
   // Ensure all assets are properly handled
   assetsInclude: ['**/*.{png,jpg,jpeg,gif,svg,webp,mp3,wav,ogg,mp4,webm}'],
   // Base path for production (useful for GitHub Pages or similar deployments)
