@@ -1,12 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Fluid Simulation Reacting to Sound</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="./output.css" rel="stylesheet">
-  </head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimized Audio Fluid Simulation</title>
+    <link rel="stylesheet" href="input.css">
+    <style>
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        .performance-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 5;
+        }
+        
+        .optimization-controls {
+            position: absolute;
+            top: 10px;
+            right: 60px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 5;
+        }
+    </style>
+</head>
 <body>
+<<<<<<< HEAD
   <div id="loadingIndicator" class="loading-indicator">
     <div class="bg-primary rounded-full w-16 h-16 pulse"></div>
     <p class="mt-4 text-lg">Initializing...</p>
@@ -25,179 +59,84 @@
     <div class="flex flex-wrap justify-between items-center w-full mb-2">
       <h2 class="text-lg font-semibold m-0">Fluid Simulation</h2>
       <span id="fpsCounter" class="text-sm opacity-70">FPS: --</span>
+=======
+    <canvas id="fluidCanvas"></canvas>
+    
+    <!-- Performance Monitoring Panel -->
+    <div class="performance-panel" id="performancePanel">
+        <div>FPS: <span id="fps">0</span></div>
+        <div>Frame Time: <span id="frameTime">0</span>ms</div>
+        <div>GPU Memory: <span id="gpuMemory">0</span>MB</div>
+        <div>Particles: <span id="particleCount">0</span></div>
+        <div>Audio Latency: <span id="audioLatency">0</span>ms</div>
+        <div>CPU Usage: <span id="cpuUsage">0</span>%</div>
+>>>>>>> bbc0f36cc8d3277f8a7fd2a6ae0b1727dba903e9
     </div>
     
-    <div class="scenes flex flex-wrap gap-2 mb-2">
-      <button class="button" onclick="setupScene(1)">Wind Tunnel</button>
-      <button class="button" onclick="setupScene(3)">Hires Tunnel</button>
-      <button class="button" onclick="setupScene(0)">Tank</button>
-      <button class="button" onclick="setupScene(2)">Paint</button>
+    <!-- Optimization Controls -->
+    <div class="optimization-controls">
+        <label>Quality: <select id="qualitySelect">
+            <option value="low">Low (60fps)</option>
+            <option value="medium" selected>Medium (120fps)</option>
+            <option value="high">High (144fps)</option>
+            <option value="ultra">Ultra (240fps)</option>
+        </select></label>
+        <br>
+        <label><input type="checkbox" id="adaptiveQuality" checked> Adaptive Quality</label>
+        <br>
+        <label><input type="checkbox" id="gpuAcceleration" checked> GPU Acceleration</label>
+        <br>
+        <label><input type="checkbox" id="multiThreading" checked> Multi-threading</label>
     </div>
     
-    <div class="options flex flex-wrap items-center mb-2">
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="streamButton" class="toggle-switch" title="Toggle Streamlines">
-        <label for="streamButton" class="toggle-label"></label>
-        <span class="ml-2">Streamlines</span>
-      </div>
-      
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="velocityButton" class="toggle-switch" title="Toggle Velocities">
-        <label for="velocityButton" class="toggle-label"></label>
-        <span class="ml-2">Velocities</span>
-      </div>
-      
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="pressureButton" class="toggle-switch" title="Toggle Pressure">
-        <label for="pressureButton" class="toggle-label"></label>
-        <span class="ml-2">Pressure</span>
-      </div>
-      
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="smokeButton" class="toggle-switch" checked title="Toggle Smoke">
-        <label for="smokeButton" class="toggle-label"></label>
-        <span class="ml-2">Smoke</span>
-      </div>
-      
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="overrelaxButton" class="toggle-switch" checked title="Toggle Overrelax">
-        <label for="overrelaxButton" class="toggle-label"></label>
-        <span class="ml-2">Overrelax</span>
-      </div>
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="vorticityButton" class="toggle-switch" title="Toggle Vorticity">
-        <label for="vorticityButton" class="toggle-label"></label>
-        <span class="ml-2">Vorticity</span>
-      </div>
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="eduModeButton" class="toggle-switch" title="Toggle Educational Mode">
-        <label for="eduModeButton" class="toggle-label"></label>
-        <span class="ml-2">Edu Mode</span>
-      </div>
+    <!-- Main Controls Panel -->
+    <div class="controls-panel" id="controlsPanel">
+        <div class="scenes">
+            <button class="button" onclick="fluidSim.setScene('default')">Default</button>
+            <button class="button" onclick="fluidSim.setScene('vortex')">Vortex</button>
+            <button class="button" onclick="fluidSim.setScene('wave')">Wave</button>
+            <button class="button" onclick="fluidSim.setScene('spiral')">Spiral</button>
+        </div>
+        
+        <div class="options">
+            <div class="toggle-wrapper">
+                <input type="checkbox" id="audioToggle" class="toggle-switch" checked>
+                <label for="audioToggle" class="toggle-label"></label>
+                <span>Audio</span>
+            </div>
+            
+            <div class="toggle-wrapper">
+                <input type="checkbox" id="particlesToggle" class="toggle-switch" checked>
+                <label for="particlesToggle" class="toggle-label"></label>
+                <span>Particles</span>
+            </div>
+            
+            <div class="toggle-wrapper">
+                <input type="checkbox" id="trailsToggle" class="toggle-switch">
+                <label for="trailsToggle" class="toggle-label"></label>
+                <span>Trails</span>
+            </div>
+        </div>
+        
+        <div class="vortex-controls">
+            <label>Viscosity: <input type="range" class="slider" id="viscositySlider" min="0" max="100" value="50"></label>
+            <label>Density: <input type="range" class="slider" id="densitySlider" min="0" max="100" value="30"></label>
+            <label>Speed: <input type="range" class="slider" id="speedSlider" min="0" max="100" value="70"></label>
+        </div>
+    </div>
+    
+    <button class="controls-toggle" id="controlsToggle">⚙</button>
+    
+    <div class="audio-indicator" id="audioIndicator">
+        <div class="wave"></div>
+        🎵
+    </div>
+    
+    <div class="loading-indicator pulse" id="loadingIndicator">
+        <div>Initializing Optimized Simulation...</div>
     </div>
 
-    <div class="color-map-controls flex flex-wrap items-center mb-2">
-      <span class="mr-2">Color Map:</span>
-      <div class="flex flex-wrap gap-2">
-        <div class="toggle-wrapper">
-          <input title="Default" type="radio" id="colorMapDefault" name="colorMap" value="default" class="toggle-switch">
-          <label for="colorMapDefault" class="toggle-label"></label>
-          <span class="ml-2">Default</span>
-        </div>
-        <div class="toggle-wrapper">
-          <input title="Thermal" type="radio" id="colorMapThermal" name="colorMap" value="thermal" class="toggle-switch">
-          <label for="colorMapThermal" class="toggle-label"></label>
-          <span class="ml-2">Thermal</span>
-        </div>
-        <div class="toggle-wrapper">
-          <input title="Rainbow" type="radio" id="colorMapRainbow" name="colorMap" value="rainbow" class="toggle-switch">
-          <label for="colorMapRainbow" class="toggle-label"></label>
-          <span class="ml-2">Rainbow</span>
-        </div>
-        <div class="toggle-wrapper">
-          <input title="Plasma" type="radio" id="colorMapPlasma" name="colorMap" value="plasma" class="toggle-switch" checked>
-          <label for="colorMapPlasma" class="toggle-label"></label>
-          <span class="ml-2">Plasma</span>
-        </div>
-      </div>
-    </div>
-    
-    <div class="vortex-controls flex flex-wrap items-center">
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="vortexButton" class="toggle-switch" checked title="Toggle Vortices">
-        <label for="vortexButton" class="toggle-label"></label>
-        <span class="ml-2">Vortices</span>
-      </div>
-      
-      <div class="flex items-center">
-        <input type="range" min="1" max="50" value="10" class="slider" id="vortexStrength">
-        <label for="vortexStrength" class="ml-2">Strength</label>
-      </div>
-    </div>
-    
-    <div class="audio-controls mt-3" id="audioControlsSection">
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="audioButton" class="toggle-switch" checked title="Toggle Audio Reactive">
-        <label for="audioButton" class="toggle-label"></label>
-        <span class="ml-2">Audio Reactive</span>
-      </div>
-      
-      <div class="flex items-center mt-2">
-        <input type="range" min="1" max="100" value="50" class="slider" id="audioSensitivity">
-        <label for="audioSensitivity" class="ml-2">Sensitivity</label>
-      </div>
-    </div>
-    
-    <div class="audio-status mt-3">
-      <div id="noAudioMessage">
-        <p>Microphone access is not available in this environment.</p>
-        <button class="button mt-2" id="micPermissionBtn">Request Microphone Access</button>
-      </div>
-    </div>
-  </div>
-  
-  <canvas id="myCanvas"></canvas>
-  
-  <script>
-    // DOM elements
-    const canvas = document.getElementById("myCanvas");
-    const c = canvas.getContext("2d", { alpha: false });
-    const loadingIndicator = document.getElementById("loadingIndicator");
-    const audioIndicator = document.getElementById("audioIndicator"); // Added for enabling display
-    const wave1 = document.getElementById("wave1");
-    const wave2 = document.getElementById("wave2");
-    const wave3 = document.getElementById("wave3");
-    const controlsToggle = document.getElementById("controlsToggle");
-    const controlsPanel = document.getElementById("controlsPanel");
-    const fpsCounter = document.getElementById("fpsCounter");
-    const streamButton = document.getElementById("streamButton");
-    const velocityButton = document.getElementById("velocityButton");
-    const pressureButton = document.getElementById("pressureButton");
-    const smokeButton = document.getElementById("smokeButton");
-    const overrelaxButton = document.getElementById("overrelaxButton");
-    const vorticityButton = document.getElementById("vorticityButton");
-    const eduModeButton = document.getElementById("eduModeButton");
-    const vortexButton = document.getElementById("vortexButton");
-    const vortexStrengthSlider = document.getElementById("vortexStrength");
-    const audioButton = document.getElementById("audioButton");
-    const audioSensitivitySlider = document.getElementById("audioSensitivity");
-    const audioControlsSection = document.getElementById("audioControlsSection");
-    const noAudioMessage = document.getElementById("noAudioMessage");
-    const micPermissionBtn = document.getElementById("micPermissionBtn");
-    
-    // Setup canvas and resize handling
-    function setupCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      canvas.style.display = "block";
-      canvas.style.touchAction = "none"; // Prevents scrolling on mobile
-      
-      const bgColor = getComputedStyle(document.body).backgroundColor || 'rgb(30,30,30)'; // Fallback bgColor
-      c.fillStyle = bgColor;
-      c.clearRect(0, 0, canvas.width, canvas.height);
-      c.fillRect(0, 0, canvas.width, canvas.height);
-    }
-    
-    // Resize canvas when window size changes - with debounce
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimeout);
-      window.isResizing = true;
-      resizeTimeout = setTimeout(() => {
-        setupCanvas();
-        updateSimDimensions();
-        setupScene(scene.sceneNr);
-        const bgColor = getComputedStyle(document.body).backgroundColor || 'rgb(30,30,30)';
-        c.fillStyle = bgColor;
-        c.clearRect(0, 0, canvas.width, canvas.height);
-        c.fillRect(0, 0, canvas.width, canvas.height);
-        window.isResizing = false;
-      }, 150);
-    });
-    
-    setupCanvas();
-    canvas.focus();
-
+<<<<<<< HEAD
     // Define simulation constants
     const U_FIELD = 0, V_FIELD = 1, S_FIELD = 2;
     let simHeight = 1.1;	
@@ -1381,5 +1320,8 @@
     });
 
   </script>
+=======
+    <script type="module" src="js/main.js"></script>
+>>>>>>> bbc0f36cc8d3277f8a7fd2a6ae0b1727dba903e9
 </body>
 </html>
