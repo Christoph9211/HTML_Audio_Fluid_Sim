@@ -12,7 +12,7 @@
     <p class="mt-4 text-lg">Initializing...</p>
   </div>
 
-  <div id="audioIndicator" class="audio-indicator" style="display: none;">
+  <div id="audioIndicator" class="audio-indicator">
     <div class="wave" id="wave1"></div>
     <div class="wave" id="wave2"></div>
     <div class="wave" id="wave3"></div>
@@ -1207,11 +1207,18 @@
     
     // ----- Main Simulation Loop -----
     let lastTimestamp = 0;
-    function stepSimulation(dt) { 
-      if (!scene.paused && scene.fluid) {
-        if (scene.useVortices) applyVortexForces(dt);
-        scene.fluid.simulate(scene.dt, scene.gravity, scene.numIters); 
-        scene.frameNr++;
+    const MAX_SIMULATION_DT = 1.0 / 120.0;
+    /**
+     * Advances the simulation by one time step, using the specified dt.
+     * If the simulation is paused, or if no fluid object has been created, does nothing.
+     * If the useVortices flag is set, applies forces from the vortices to the fluid.
+     * Then, simulates the fluid for one time step, using the specified dt, gravity, and number of iterations.
+     * Finally, increments the frame number.
+     * @param {number} dt - The time step for the simulation.
+     */
+    function stepSimulation(totalDeltaTime) {
+      if (scene.paused || !scene.fluid) {
+        return;
       }
 
       let accumulatedTime = 0;
@@ -1263,14 +1270,6 @@
 
       draw();
       requestAnimationFrame(update);
-    //   if (window.isResizing) { requestAnimationFrame(update); return; }
-    //   // const dt = (timestamp - lastTimestamp) / 1000.0; // Actual dt, if needed for variable step
-    //   lastTimestamp = timestamp;
-    //   updateFps(timestamp); 
-    //   if (audioEnabled && audioAvailable) applySoundImpulse(); 
-    //   stepSimulation(scene.dt); // Use fixed scene.dt for simulation step
-    //   draw(); 
-    //   requestAnimationFrame(update); 
     }
     
     // ----- Interaction Handlers -----
