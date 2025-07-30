@@ -5,263 +5,8 @@
   <title>Fluid Simulation Reacting to Sound</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="./output.css" rel="stylesheet">
-  <!-- <link rel="stylesheet" href="styles.css"> -->
   <!-- <script src="https://cdn.tailwindcss.com"></script> -->
-  <style>
-    :root {
-      --primary: #5D5CDE;
-      --bg-light: #FFFFFF;
-      --bg-dark: #181818;
-      --text-light: #333333;
-      --text-dark: #F5F5F5;
-    }
-    
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      transition: background-color 0.3s ease;
-    }
-    
-    @media (prefers-color-scheme: dark) {
-      body {
-        background-color: var(--bg-dark);
-        color: var(--text-dark);
-      }
-      .controls-panel {
-        background-color: rgba(30, 30, 30, 0.8);
-        border: 1px solid #444;
-      }
-      .toggle-switch:checked + .toggle-label {
-        background-color: var(--primary);
-      }
-      .toggle-label {
-        background-color: #555;
-      }
-    }
-    
-    @media (prefers-color-scheme: light) {
-      body {
-        background-color: var(--bg-light);
-        color: var(--text-light);
-      }
-      .controls-panel {
-        background-color: rgba(245, 245, 245, 0.8);
-        border: 1px solid #ddd;
-      }
-      .toggle-switch:checked + .toggle-label {
-        background-color: var(--primary);
-      }
-      .toggle-label {
-        background-color: #ccc;
-      }
-    }
-    
-    .button {
-      background-color: var(--primary);
-      border: none;
-      color: white;
-      padding: 10px 14px;
-      font-size: 16px;
-      margin: 4px;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: all 0.2s ease;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .button:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-    
-    .button:active {
-      transform: translateY(1px);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-    
-    .slider {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 120px;
-      height: 8px;
-      border-radius: 5px;
-      background: #d3d3d3;
-      outline: none;
-      opacity: 0.9;
-      transition: opacity .2s;
-    }
-    
-    .slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary);
-      cursor: pointer;
-    }
-    
-    .slider::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary);
-      cursor: pointer;
-    }
-    
-    .controls-panel {
-      position: absolute;
-      z-index: 2;
-      top: 10px;
-      left: 10px;
-      border-radius: 8px;
-      padding: 12px;
-      max-width: 90vw;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      transition: all 0.3s ease;
-      -webkit-backdrop-filter: blur(5px);
-      backdrop-filter: blur(5px);
-    }
-    
-    .toggle-wrapper {
-      display: inline-flex;
-      align-items: center;
-      margin: 6px 12px 6px 0;
-    }
-    
-    .toggle-switch {
-      height: 0;
-      width: 0;
-      visibility: hidden;
-      position: absolute;
-    }
-    
-    .toggle-label {
-      cursor: pointer;
-      width: 36px;
-      height: 20px;
-      display: block;
-      border-radius: 20px;
-      position: relative;
-      transition: 0.3s;
-    }
-    
-    .toggle-label:after {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      background: white;
-      border-radius: 16px;
-      transition: 0.3s;
-    }
-    
-    .toggle-switch:checked + .toggle-label:after {
-      left: calc(100% - 2px);
-      transform: translateX(-100%);
-    }
-    
-    .controls-toggle {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 3;
-      width: 40px;
-      height: 40px;
-      background-color: var(--primary);
-      color: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      border: none;
-      font-size: 20px;
-    }
-
-    .audio-indicator {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background-color: var(--primary);
-      opacity: 0.8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      transition: transform 0.1s ease;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-    
-    .audio-indicator .wave {
-      position: absolute;
-      border: 2px solid var(--primary);
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      opacity: 0;
-    }
-    
-    @keyframes wave {
-      0% { transform: scale(1); opacity: 0.8; }
-      100% { transform: scale(2); opacity: 0; }
-    }
-    
-    .loading-indicator {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: none;
-      z-index: 10;
-      text-align: center;
-    }
-    
-    @keyframes pulse {
-      0% { opacity: 0.5; transform: scale(0.8); }
-      50% { opacity: 1; transform: scale(1.2); }
-      100% { opacity: 0.5; transform: scale(0.8); }
-    }
-    
-    .pulse {
-      animation: pulse 1.5s infinite ease-in-out;
-    }
-    
-    /* Mobile responsive styles */
-    @media (max-width: 768px) {
-      .controls-panel {
-        flex-direction: column;
-        padding: 8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 95%;
-        max-width: none;
-      }
-      
-      .scenes, .options, .vortex-controls {
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-      
-      .toggle-wrapper {
-        margin: 5px;
-      }
-      
-      .slider {
-        width: 100%;
-        max-width: 250px;
-      }
-    }
-  </style>
+  
 </head>
 <body>
   <!-- Loading indicator -->
@@ -271,7 +16,7 @@
   </div>
 
   <!-- Audio indicator -->
-  <div id="audioIndicator" class="audio-indicator";>
+  <div id="audioIndicator" class="audio-indicator">
     <div class="wave" id="wave1"></div>
     <div class="wave" id="wave2"></div>
     <div class="wave" id="wave3"></div>
@@ -279,7 +24,7 @@
   </div>
 
   <!-- Controls toggle button -->
-  <button class="controls-toggle" id="controlsToggle"> ⚙️ </button>
+  <button class="controls-toggle" id="controlsToggle">⚙️</button>
   
   <!-- Controls panel -->
   <div class="controls-panel" id="controlsPanel">
@@ -297,39 +42,66 @@
     
     <div class="options flex flex-wrap items-center mb-2">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="streamButton" class="toggle-switch">
+        <input type="checkbox" id="streamButton" class="toggle-switch" title="Toggle Streamlines">
         <label for="streamButton" class="toggle-label"></label>
         <span class="ml-2">Streamlines</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="velocityButton" class="toggle-switch">
+        <input type="checkbox" id="velocityButton" class="toggle-switch" title="Toggle Velocities">
         <label for="velocityButton" class="toggle-label"></label>
         <span class="ml-2">Velocities</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="pressureButton" class="toggle-switch">
+        <input type="checkbox" id="pressureButton" class="toggle-switch" title="Toggle Pressure">
         <label for="pressureButton" class="toggle-label"></label>
         <span class="ml-2">Pressure</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="smokeButton" class="toggle-switch" checked>
+        <input type="checkbox" id="smokeButton" class="toggle-switch" checked title="Toggle Smoke">
         <label for="smokeButton" class="toggle-label"></label>
         <span class="ml-2">Smoke</span>
       </div>
       
       <div class="toggle-wrapper">
-        <input type="checkbox" id="overrelaxButton" class="toggle-switch" checked>
+        <input type="checkbox" id="overrelaxButton" class="toggle-switch" checked title="Toggle Overrelax">
         <label for="overrelaxButton" class="toggle-label"></label>
         <span class="ml-2">Overrelax</span>
+      </div>
+    </div>
+
+    <!-- Add color map selection -->
+    <div class="color-map-controls flex flex-wrap items-center mb-2">
+      <span class="mr-2">Color Map:</span>
+      <div class="flex flex-wrap gap-2">
+        <div class="toggle-wrapper">
+          <input title="Default" type="radio" id="colorMapDefault" name="colorMap" value="default" class="toggle-switch">
+          <label for="colorMapDefault" class="toggle-label"></label>
+          <span class="ml-2">Default</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input title="Thermal" type="radio" id="colorMapThermal" name="colorMap" value="thermal" class="toggle-switch">
+          <label for="colorMapThermal" class="toggle-label"></label>
+          <span class="ml-2">Thermal</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input title="Rainbow" type="radio" id="colorMapRainbow" name="colorMap" value="rainbow" class="toggle-switch">
+          <label for="colorMapRainbow" class="toggle-label"></label>
+          <span class="ml-2">Rainbow</span>
+        </div>
+        <div class="toggle-wrapper">
+          <input title="Plasma" type="radio" id="colorMapPlasma" name="colorMap" value="plasma" class="toggle-switch" checked>
+          <label for="colorMapPlasma" class="toggle-label"></label>
+          <span class="ml-2">Plasma</span>
+        </div>
       </div>
     </div>
     
     <div class="vortex-controls flex flex-wrap items-center">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="vortexButton" class="toggle-switch" checked>
+        <input type="checkbox" id="vortexButton" class="toggle-switch" checked title="Toggle Vortices">
         <label for="vortexButton" class="toggle-label"></label>
         <span class="ml-2">Vortices</span>
       </div>
@@ -340,9 +112,9 @@
       </div>
     </div>
     
-    <div class="audio-controls mt-3" id="audioControlsSection";>
+    <div class="audio-controls mt-3" id="audioControlsSection">
       <div class="toggle-wrapper">
-        <input type="checkbox" id="audioButton" class="toggle-switch" checked>
+        <input type="checkbox" id="audioButton" class="toggle-switch" checked title="Toggle Audio Reactive">
         <label for="audioButton" class="toggle-label"></label>
         <span class="ml-2">Audio Reactive</span>
       </div>
@@ -354,7 +126,7 @@
     </div>
     
     <div class="audio-status mt-3">
-      <div id="noAudioMessage";>
+      <div id="noAudioMessage">
         <p>Microphone access is not available in this environment.</p>
         <button class="button mt-2" id="micPermissionBtn">Request Microphone Access</button>
       </div>
@@ -369,7 +141,7 @@
     const canvas = document.getElementById("myCanvas");
     const c = canvas.getContext("2d", { alpha: false });
     const loadingIndicator = document.getElementById("loadingIndicator");
-    const audioIndicator = document.getElementById("audioIndicator");
+    // const audioIndicator = document.getElementById("audioIndicator");
     const wave1 = document.getElementById("wave1");
     const wave2 = document.getElementById("wave2");
     const wave3 = document.getElementById("wave3");
@@ -398,8 +170,8 @@
       
       // Force a complete clear of the canvas with the correct background color
       const bgColor = getComputedStyle(document.body).backgroundColor;
-      c.fillStyle = bgColor;
-      c.clearRect(0, 0, canvas.width, canvas.height);
+      // c.fillStyle = bgColor;
+      // c.clearRect(0, 0, canvas.width, canvas.height);
       c.fillRect(0, 0, canvas.width, canvas.height);
     }
     
@@ -491,8 +263,9 @@
           audioAvailable = true;
           audioEnabled = true;
           loadingIndicator.style.display = "none";
-          audioIndicator.style.display = "flex";
+          // audioIndicator.style.display = "flex";
           audioControlsSection.style.display = "block";
+          noAudioMessage.style.display = "none"; // Hide the no audio message
           startAudioVisualization();
           
           // Calibrate noise level
@@ -518,7 +291,7 @@
       audioAvailable = false;
       noAudioMessage.style.display = "block";
       audioControlsSection.style.display = "none";
-      audioIndicator.style.display = "none";
+      // audioIndicator.style.display = "none";
     }
     
     /**
@@ -595,6 +368,14 @@
     
     // ----- Fluid Simulation Code -----
     class Fluid {
+      constructor(density, numX, numY, h) {
+        this.density = density;
+        this.numX = numX + 2; 
+        this.numY = numY + 2;
+        this.numCells = this.numX * this.numY;
+        this.h = h;
+        this.minP = Infinity;
+        this.maxP = -Infinity;
       /**
        * Initialize a fluid simulation with the given parameters.
        * 
@@ -603,12 +384,7 @@
        * @param {number} numY - The number of cells in the y-direction.
        * @param {number} h - The width and height of each cell.
        */
-      constructor(density, numX, numY, h) {
-        this.density = density;
-        this.numX = numX + 2; 
-        this.numY = numY + 2;
-        this.numCells = this.numX * this.numY;
-        this.h = h;
+
         
         // Use typed arrays for better performance
         this.u = new Float32Array(this.numCells);
@@ -676,6 +452,8 @@
               pCorr *= scene.overRelaxation;
               
               this.p[index] += cp * pCorr;
+              this.minP = Math.min(this.minP, this.p[index]);
+              this.maxP = Math.max(this.maxP, this.p[index]);
               this.u[index] -= sx0 * pCorr;
               this.u[(i+1)*n + j] += sx1 * pCorr;
               this.v[index] -= sy0 * pCorr;
@@ -869,6 +647,8 @@
       simulate(dt, gravity, numIters) {
         this.integrate(dt, gravity);
         this.p.fill(0.0);
+        this.minP = Infinity;
+        this.maxP = -Infinity;
         this.solveIncompressibility(numIters, dt);
         this.extrapolate();
         this.advectVel(dt);
@@ -929,7 +709,6 @@
     
     // ----- Visualization and Color Helpers -----
     const colorMaps = {
-      // Default scientific colormap (blue-cyan-green-yellow-red)
       default: function(val, minVal, maxVal) {
         val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
         const d = maxVal - minVal;
@@ -938,18 +717,14 @@
         const num = Math.floor(val / m);
         const s = (val - num * m) / m;
         let r, g, b;
-        
-        switch(num) {
+        switch (num) {
           case 0: r = 0.0; g = s; b = 1.0; break;
           case 1: r = 0.0; g = 1.0; b = 1.0 - s; break;
           case 2: r = s; g = 1.0; b = 0.0; break;
           case 3: r = 1.0; g = 1.0 - s; b = 0.0; break;
         }
-        
-        return [Math.floor(255*r), Math.floor(255*g), Math.floor(255*b), 255];
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
       },
-
-      // Thermal colormap (blue-white-red)
       thermal: function(val, minVal, maxVal) {
         val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
         const d = maxVal - minVal;
@@ -958,16 +733,12 @@
         const num = Math.floor(val / m);
         const s = (val - num * m) / m;
         let r, g, b;
-        
-        switch(num) {
+        switch (num) {
           case 0: r = 0.0; g = s; b = 1.0; break;
           case 1: r = 1.0 - s; g = 1.0; b = 0.0; break;
         }
-        
-        return [Math.floor(255*r), Math.floor(255*g), Math.floor(255*b), 255];
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
       },
-
-      // Rainbow colormap (red-orange-yellow-green-blue-purple)
       rainbow: function(val, minVal, maxVal) {
         val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
         const d = maxVal - minVal;
@@ -976,8 +747,7 @@
         const num = Math.floor(val / m);
         const s = (val - num * m) / m;
         let r, g, b;
-        
-        switch(num) {
+        switch (num) {
           case 0: r = 1.0; g = s; b = 0.0; break;
           case 1: r = 1.0; g = 1.0; b = s; break;
           case 2: r = s; g = 1.0; b = 0.0; break;
@@ -985,34 +755,20 @@
           case 4: r = 0.0; g = s; b = 1.0; break;
           case 5: r = s; g = 0.0; b = 1.0; break;
         }
-        
-        return [Math.floor(255*r), Math.floor(255*g), Math.floor(255*b), 255];
+        return [Math.floor(255 * r), Math.floor(255 * g), Math.floor(255 * b), 255];
       },
-      
-      // Plasma-like colormap (purple-magenta-orange-yellow)
       plasma: function(val, minVal, maxVal) {
         val = Math.min(Math.max(val, minVal), maxVal - 0.0001);
         const d = maxVal - minVal;
         val = d === 0.0 ? 0.5 : (val - minVal) / d;
-        
-        // Base colors for interpolation
         const colors = [
-          [13, 8, 135],    // Dark purple
-          [126, 3, 168],   // Purple
-          [204, 71, 120],  // Magenta
-          [248, 149, 64],  // Orange
-          [240, 249, 33]   // Yellow
+          [13, 8, 135], [126, 3, 168], [204, 71, 120], [248, 149, 64], [240, 249, 33]
         ];
-        
-        // Find segment and interpolation factor
         const segments = colors.length - 1;
         const segment = Math.min(Math.floor(val * segments), segments - 1);
         const t = (val * segments) - segment;
-        
-        // Interpolate between colors
         const c1 = colors[segment];
         const c2 = colors[segment + 1];
-        
         return [
           Math.floor(c1[0] + t * (c2[0] - c1[0])),
           Math.floor(c1[1] + t * (c2[1] - c1[1])),
@@ -1052,8 +808,9 @@
     
     // ----- Scene and Rendering -----
     const scene = {
+      fluidPressureRange: { minP: Infinity, maxP: -Infinity },
       gravity: -9.81,
-      dt: 1.0 / 90.0,
+      dt: 1.0 / 60.0,
       numIters: 40,
       frameNr: 0,
       overRelaxation: 1.9,
@@ -1083,16 +840,16 @@
       scene.sceneNr = sceneNr;
       scene.obstacleRadius = 0.1;
       scene.overRelaxation = 1.9;
-      scene.dt = 1.0 / 90.0;
+      scene.dt = 1.0 / 60.0;
       scene.numIters = 40;
       
       // Different resolution based on scene type
-      // let res = (sceneNr === 3) ? 200 : (sceneNr === 0 ? 200 : 200);
-      let res = 200;
+      let res = (sceneNr === 3) ? 150 : (sceneNr === 0 ? 100 : 100);
+      
       // For mobile devices, reduce resolution to improve performance
-      // if (window.innerWidth < 768) {
-      //   res = Math.floor(res * 0.6);
-      // }
+      if (window.innerWidth < 768) {
+        res = Math.floor(res * 0.6);
+      }
       
       const domainHeight = 1.0;
       const domainWidth = domainHeight / simHeight * simWidth;
@@ -1305,10 +1062,10 @@
     function applySoundImpulse() {
       const soundLevel = getSoundLevel();
       
-      // Update audio indicator size based on sound level
-      if (audioIndicator.style.display !== 'none') {
-        audioIndicator.style.transform = `scale(${1 + soundLevel})`;
-      }
+      // // Update audio indicator size based on sound level
+      // if (audioIndicator.style.display !== 'none') {
+      //   audioIndicator.style.transform = `scale(${1 + soundLevel})`;
+      // }
       
       if (soundLevel > 0) {
         const fluid = scene.fluid;
@@ -1354,12 +1111,7 @@
       const h = f.h;
       
       // Find min/max pressure for color scaling
-      let minP = f.p[0], maxP = f.p[0];
-      
-      for (let i = 0; i < f.numCells; i++) {
-        minP = Math.min(minP, f.p[i]);
-        maxP = Math.max(maxP, f.p[i]);
-      }
+      const { minP, maxP } = scene.fluidPressureRange;
       
       // Create image data for pixel manipulation - big performance win vs. drawing rects
       const width = canvas.width;
@@ -1391,9 +1143,18 @@
             }
           } else if (scene.showSmoke) {
             const sVal = f.m[idx];
-            color = getSciColor(sVal, 0, 1);
+            // Show smoke density with adjusted visualization
+            if (scene.sceneNr === 2) {
+              // For paint mode, use a colorful visualization
+              color = getSciColor(sVal, 0, 1);
+            } else {
+              // For other modes, use grayscale
+              // color = [255*(1-sVal), 255*(1-sVal), 255*(1-sVal), 255];
+              color = getSciColor(sVal, 0, 1);
+            }
           } else {
-            color = getSciColor(f.u[idx], -1, 1); // Default to u velocity
+            // Default: black for obstacles, white for fluid
+            color = f.s[idx] === 0.0 ? [0, 0, 0, 255] : [255, 255, 255, 255];
           }
           
           // Calculate pixel coordinates
@@ -1467,50 +1228,58 @@
       if (scene.showVelocities) {
         c.strokeStyle = "#000";
         const scale = 0.02;
+        const maxArrowLength = 20; // Maximum arrow length in pixels
         
         // Only draw a subset of vectors to avoid cluttering
         const skipFactor = Math.max(1, Math.floor(f.numX / 50));
         
         for (let i = 1; i < f.numX; i += skipFactor) {
           for (let j = 1; j < f.numY; j += skipFactor) {
-            const index = i*n+j;
-            
-            // Only draw significant velocities to reduce visual noise
-            const u_val = f.u[index];
-            const v_val = f.v[index];
-            const velMagnitude = Math.sqrt(u_val*u_val + v_val*v_val);
-            
-            if (velMagnitude > 0.05) {
-              const x = cX((i+0.5)*h);
-              const y = cY((j+0.5)*h);
-              const vx = u_val * scale * cScale;
-              const vy = -v_val * scale * cScale;
-              
-              // Arrow body
-              c.beginPath();
-              c.moveTo(x, y);
-              c.lineTo(x + vx, y + vy);
-              
-              // Arrow head
-              const headSize = 4;
-              const angle = Math.atan2(vy, vx);
-              c.lineTo(
-                x + vx - headSize * Math.cos(angle - Math.PI/6),
-                y + vy - headSize * Math.sin(angle - Math.PI/6)
-              );
-              c.moveTo(x + vx, y + vy);
-              c.lineTo(
-                x + vx - headSize * Math.cos(angle + Math.PI/6),
-                y + vy - headSize * Math.sin(angle + Math.PI/6)
-              );
-              
-              c.stroke();
-            }
+        const index = i*n+j;
+        
+        // Only draw significant velocities to reduce visual noise
+        const u_val = f.u[index];
+        const v_val = f.v[index];
+        const velMagnitude = Math.sqrt(u_val*u_val + v_val*v_val);
+        
+        if (velMagnitude > 0.05) {
+          const x = cX((i+0.5)*h);
+          const y = cY((j+0.5)*h);
+          let vx = u_val * scale * cScale;
+          let vy = -v_val * scale * cScale;
+          
+          // Limit arrow length
+          const arrowLength = Math.sqrt(vx*vx + vy*vy);
+          if (arrowLength > maxArrowLength) {
+            const reductionFactor = maxArrowLength / arrowLength;
+            vx *= reductionFactor;
+            vy *= reductionFactor;
+          }
+          
+          // Arrow body
+          c.beginPath();
+          c.moveTo(x, y);
+          c.lineTo(x + vx, y + vy);
+          
+          // Arrow head
+          const headSize = 4;
+          const angle = Math.atan2(vy, vx);
+          c.lineTo(
+            x + vx - headSize * Math.cos(angle - Math.PI/6),
+            y + vy - headSize * Math.sin(angle - Math.PI/6)
+          );
+          c.moveTo(x + vx, y + vy);
+          c.lineTo(
+            x + vx - headSize * Math.cos(angle + Math.PI/6),
+            y + vy - headSize * Math.sin(angle + Math.PI/6)
+          );
+          
+          c.stroke();
+        }
           }
         }
       }
-    }
-    
+        }
     /**
      * Renders streamlines based on the velocity field.
      */
@@ -1605,6 +1374,8 @@
       if (!scene.paused) {
         applyVortexForces(dt);
         scene.fluid.simulate(scene.dt, scene.gravity, scene.numIters);
+        scene.fluidPressureRange.minP = scene.fluid.minP;
+        scene.fluidPressureRange.maxP = scene.fluid.maxP;
         scene.frameNr++;
       }
     }
@@ -1766,10 +1537,10 @@
       scene.vortexStrength = parseFloat(this.value);
     });
     
-    audioButton.addEventListener('change', function() {
-      audioEnabled = this.checked;
-      audioIndicator.style.display = audioEnabled ? 'flex' : 'none';
-    });
+    // audioButton.addEventListener('change', function() {
+    //   audioEnabled = this.checked;
+    //   audioIndicator.style.display = audioEnabled ? 'flex' : 'none';
+    // });
     
     audioSensitivitySlider.addEventListener('input', function() {
       audioSensitivity = parseFloat(this.value) / 100;
@@ -1784,6 +1555,13 @@
       const isVisible = controlsPanel.style.display !== 'none';
       controlsPanel.style.display = isVisible ? 'none' : 'block';
       this.textContent = isVisible ? '⚙️' : '×';
+    });
+    
+    // Add color map selection handlers
+    document.querySelectorAll('input[name="colorMap"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        currentColorMap = colorMaps[this.value];
+      });
     });
     
     // ----- Start Everything -----
