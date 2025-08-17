@@ -5,11 +5,11 @@
   "main": "index.html",
   "scripts": {
     "dev": "vite",
+    "build:css": "npx tailwindcss -i input.css -o styles.css",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "echo \"No tests specified\"",
-    "lint": "echo \"No linting configured\"",
-    "format": "echo \"No formatter configured\""
+    "start": "vite --port 3000",
+    "serve": "npx serve index.html"
   },
   "repository": {
     "type": "git",
@@ -18,16 +18,18 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/Christoph9211/HTML_Audio_Fluid_Sim/issues"
   },
   "homepage": "https://github.com/Christoph9211/HTML_Audio_Fluid_Sim#readme",
   "devDependencies": {
-    "vite": "^6.2.5"
+    "vite": "^6.3.5"
   },
   "dependencies": {
-    "tailwindcss": "^3.3.5"
+    "@tailwindcss/cli": "^4.1.11",
+    "serve": "^14.2.4",
+    "tailwindcss": "^4.1.11"
   },
   "vite": {
     "server": {
