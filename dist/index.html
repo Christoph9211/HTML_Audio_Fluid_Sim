@@ -5,262 +5,8 @@
   <title>Fluid Simulation Reacting to Sound</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- <script src="https://cdn.tailwindcss.com"></script> -->
-  <style>
-    :root {
-      --primary: #5D5CDE;
-      --bg-light: #FFFFFF;
-      --bg-dark: #181818;
-      --text-light: #333333;
-      --text-dark: #F5F5F5;
-    }
-    
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      transition: background-color 0.3s ease;
-    }
-    
-    @media (prefers-color-scheme: dark) {
-      body {
-        background-color: var(--bg-dark);
-        color: var(--text-dark);
-      }
-      .controls-panel {
-        background-color: rgba(30, 30, 30, 0.8);
-        border: 1px solid #444;
-      }
-      .toggle-switch:checked + .toggle-label {
-        background-color: var(--primary);
-      }
-      .toggle-label {
-        background-color: #555;
-      }
-    }
-    
-    @media (prefers-color-scheme: light) {
-      body {
-        background-color: var(--bg-light);
-        color: var(--text-light);
-      }
-      .controls-panel {
-        background-color: rgba(245, 245, 245, 0.8);
-        border: 1px solid #ddd;
-      }
-      .toggle-switch:checked + .toggle-label {
-        background-color: var(--primary);
-      }
-      .toggle-label {
-        background-color: #ccc;
-      }
-    }
-    
-    .button {
-      background-color: var(--primary);
-      border: none;
-      color: white;
-      padding: 10px 14px;
-      font-size: 16px;
-      margin: 4px;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: all 0.2s ease;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .button:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-    
-    .button:active {
-      transform: translateY(1px);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-    
-    .slider {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 120px;
-      height: 8px;
-      border-radius: 5px;
-      background: #d3d3d3;
-      outline: none;
-      opacity: 0.9;
-      transition: opacity .2s;
-    }
-    
-    .slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary);
-      cursor: pointer;
-    }
-    
-    .slider::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary);
-      cursor: pointer;
-    }
-    
-    .controls-panel {
-      position: absolute;
-      z-index: 2;
-      top: 10px;
-      left: 10px;
-      border-radius: 8px;
-      padding: 12px;
-      max-width: 90vw;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      transition: all 0.3s ease;
-      -webkit-backdrop-filter: blur(5px);
-      backdrop-filter: blur(5px);
-    }
-    
-    .toggle-wrapper {
-      display: inline-flex;
-      align-items: center;
-      margin: 6px 12px 6px 0;
-    }
-    
-    .toggle-switch {
-      height: 0;
-      width: 0;
-      visibility: hidden;
-      position: absolute;
-    }
-    
-    .toggle-label {
-      cursor: pointer;
-      width: 36px;
-      height: 20px;
-      display: block;
-      border-radius: 20px;
-      position: relative;
-      transition: 0.3s;
-    }
-    
-    .toggle-label:after {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      background: white;
-      border-radius: 16px;
-      transition: 0.3s;
-    }
-    
-    .toggle-switch:checked + .toggle-label:after {
-      left: calc(100% - 2px);
-      transform: translateX(-100%);
-    }
-    
-    .controls-toggle {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 3;
-      width: 40px;
-      height: 40px;
-      background-color: var(--primary);
-      color: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      border: none;
-      font-size: 20px;
-    }
-
-    .audio-indicator {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background-color: var(--primary);
-      opacity: 0.8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      transition: transform 0.1s ease;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-    
-    .audio-indicator .wave {
-      position: absolute;
-      border: 2px solid var(--primary);
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      opacity: 0;
-    }
-    
-    @keyframes wave {
-      0% { transform: scale(1); opacity: 0.8; }
-      100% { transform: scale(2); opacity: 0; }
-    }
-    
-    .loading-indicator {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: none;
-      z-index: 10;
-      text-align: center;
-    }
-    
-    @keyframes pulse {
-      0% { opacity: 0.5; transform: scale(0.8); }
-      50% { opacity: 1; transform: scale(1.2); }
-      100% { opacity: 0.5; transform: scale(0.8); }
-    }
-    
-    .pulse {
-      animation: pulse 1.5s infinite ease-in-out;
-    }
-    
-    /* Mobile responsive styles */
-    @media (max-width: 768px) {
-      .controls-panel {
-        flex-direction: column;
-        padding: 8px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 95%;
-        max-width: none;
-      }
-      
-      .scenes, .options, .vortex-controls {
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-      
-      .toggle-wrapper {
-        margin: 5px;
-      }
-      
-      .slider {
-        width: 100%;
-        max-width: 250px;
-      }
-    }
-  </style>
-  <link rel="stylesheet" crossorigin href="/assets/index-eY9buwNW.css">
+  
+  <link rel="stylesheet" crossorigin href="./assets/main-BZJroI6C.css">
 </head>
 <body>
   <!-- Loading indicator -->
@@ -331,22 +77,22 @@
       <span class="mr-2">Color Map:</span>
       <div class="flex flex-wrap gap-2">
         <div class="toggle-wrapper">
-          <input type="radio" id="colorMapDefault" name="colorMap" value="default" class="toggle-switch">
+          <input title="Default" type="radio" id="colorMapDefault" name="colorMap" value="default" class="toggle-switch">
           <label for="colorMapDefault" class="toggle-label"></label>
           <span class="ml-2">Default</span>
         </div>
         <div class="toggle-wrapper">
-          <input type="radio" id="colorMapThermal" name="colorMap" value="thermal" class="toggle-switch">
+          <input title="Thermal" type="radio" id="colorMapThermal" name="colorMap" value="thermal" class="toggle-switch">
           <label for="colorMapThermal" class="toggle-label"></label>
           <span class="ml-2">Thermal</span>
         </div>
         <div class="toggle-wrapper">
-          <input type="radio" id="colorMapRainbow" name="colorMap" value="rainbow" class="toggle-switch">
+          <input title="Rainbow" type="radio" id="colorMapRainbow" name="colorMap" value="rainbow" class="toggle-switch">
           <label for="colorMapRainbow" class="toggle-label"></label>
           <span class="ml-2">Rainbow</span>
         </div>
         <div class="toggle-wrapper">
-          <input type="radio" id="colorMapPlasma" name="colorMap" value="plasma" class="toggle-switch" checked>
+          <input title="Plasma" type="radio" id="colorMapPlasma" name="colorMap" value="plasma" class="toggle-switch" checked>
           <label for="colorMapPlasma" class="toggle-label"></label>
           <span class="ml-2">Plasma</span>
         </div>
@@ -395,7 +141,7 @@
     const canvas = document.getElementById("myCanvas");
     const c = canvas.getContext("2d", { alpha: false });
     const loadingIndicator = document.getElementById("loadingIndicator");
-    const audioIndicator = document.getElementById("audioIndicator");
+    // const audioIndicator = document.getElementById("audioIndicator");
     const wave1 = document.getElementById("wave1");
     const wave2 = document.getElementById("wave2");
     const wave3 = document.getElementById("wave3");
@@ -478,7 +224,7 @@
     // ----- Audio Input Setup using Web Audio API -----
     let audioContext, analyser, dataArray;
     let audioEnabled = false;
-    let audioSensitivity = 0.5;
+    let audioSensitivity = 0.1;
     let audioAvailable = false;
     let noiseLevel = 0;
     
@@ -517,7 +263,7 @@
           audioAvailable = true;
           audioEnabled = true;
           loadingIndicator.style.display = "none";
-          audioIndicator.style.display = "flex";
+          // audioIndicator.style.display = "flex";
           audioControlsSection.style.display = "block";
           noAudioMessage.style.display = "none"; // Hide the no audio message
           startAudioVisualization();
@@ -545,7 +291,7 @@
       audioAvailable = false;
       noAudioMessage.style.display = "block";
       audioControlsSection.style.display = "none";
-      audioIndicator.style.display = "none";
+      // audioIndicator.style.display = "none";
     }
     
     /**
@@ -574,15 +320,14 @@
           setTimeout(sampleNoise, 50);
         } else {
           // Set noise floor to average + small buffer
-          noiseLevel = 0.01;
-          // noiseLevel = (totalNoise / samples);
+          // noiseLevel = 0.01;
+          noiseLevel = (totalNoise / samples);
           console.log("Noise floor calibrated to:", noiseLevel);
         }
       };
-      
       sampleNoise();
     }
-    
+
     /**
      * Starts the audio visualization with animated waves.
      */
@@ -941,7 +686,7 @@
           this.y += Math.sin(this.angle) * 0.0005;
         }
         
-        this.lastSoundLevel = soundLevel * 0.4; // 0.8 Slight decay
+        this.lastSoundLevel = soundLevel * 0.8; // 0.8 Slight decay
         this.normalizePosition();
       }
       
@@ -1331,30 +1076,21 @@
      */
     function applySoundImpulse() {
       const soundLevel = getSoundLevel();
+      const fluid = scene.fluid;
+      const centerIndex = Math.floor(fluid.numX / 2) * fluid.numY + Math.floor(fluid.numY / 2);
+      const impulseStrength = soundLevel * 2000.0;
       
-      // Update audio indicator size based on sound level
-      if (audioIndicator.style.display !== 'none') {
-        audioIndicator.style.transform = `scale(${1 + soundLevel})`;
-      }
-      
-      if (soundLevel > 0) {
-        const fluid = scene.fluid;
-        const centerX = Math.floor(fluid.numX / 2);
-        const centerY = Math.floor(fluid.numY / 2);
-        const impulseStrength = soundLevel * 1000.0;
-        
-        // Apply impulse to a small block around the center
-        for (let i = -2; i <= 2; i++) {
-          for (let j = -2; j <= 2; j++) {
-            const index = (centerX + i) * fluid.numY + (centerY + j);
-            if (index >= 0 && index < fluid.numCells) {
-              fluid.u[index] += impulseStrength * (Math.random() * 2 - 1);
-              fluid.v[index] += impulseStrength * (Math.random() * 2 - 1);
-              
-              // Add a bit of smoke/color in paint mode
-              if (scene.sceneNr === 2 && soundLevel > 0.2) {
-                fluid.m[index] = Math.min(fluid.m[index] + soundLevel * 0.1, 1.0);
-              }
+      // Apply impulse to a small block around the center
+      for (let i = -2; i <= 2; i++) {
+        for (let j = -2; j <= 2; j++) {
+          const index = centerIndex + i * fluid.numY + j;
+          if (index >= 0 && index < fluid.numCells) {
+            fluid.u[index] += impulseStrength * (Math.random() * 2 - 1);
+            fluid.v[index] += impulseStrength * (Math.random() * 2 - 1);
+            
+            // Add a bit of smoke/color in paint mode
+            if (scene.sceneNr === 2 && soundLevel > 0.2) {
+              fluid.m[index] = Math.min(fluid.m[index] + soundLevel * 0.1, 1.0);
             }
           }
         }
@@ -1810,10 +1546,10 @@
       scene.vortexStrength = parseFloat(this.value);
     });
     
-    audioButton.addEventListener('change', function() {
-      audioEnabled = this.checked;
-      audioIndicator.style.display = audioEnabled ? 'flex' : 'none';
-    });
+    // audioButton.addEventListener('change', function() {
+    //   audioEnabled = this.checked;
+    //   audioIndicator.style.display = audioEnabled ? 'flex' : 'none';
+    // });
     
     audioSensitivitySlider.addEventListener('input', function() {
       audioSensitivity = parseFloat(this.value) / 100;

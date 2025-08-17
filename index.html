@@ -16,7 +16,7 @@
   </div>
 
   <!-- Audio indicator -->
-  <div id="audioIndicator" class="audio-indicator";">
+  <div id="audioIndicator" class="audio-indicator">
     <div class="wave" id="wave1"></div>
     <div class="wave" id="wave2"></div>
     <div class="wave" id="wave3"></div>
@@ -224,7 +224,7 @@
     // ----- Audio Input Setup using Web Audio API -----
     let audioContext, analyser, dataArray;
     let audioEnabled = false;
-    let audioSensitivity = 0.5;
+    let audioSensitivity = 0.1;
     let audioAvailable = false;
     let noiseLevel = 0;
     
@@ -320,15 +320,14 @@
           setTimeout(sampleNoise, 50);
         } else {
           // Set noise floor to average + small buffer
-          noiseLevel = 0.01;
-          // noiseLevel = (totalNoise / samples);
+          // noiseLevel = 0.01;
+          noiseLevel = (totalNoise / samples);
           console.log("Noise floor calibrated to:", noiseLevel);
         }
       };
-      
       sampleNoise();
     }
-    
+
     /**
      * Starts the audio visualization with animated waves.
      */
@@ -687,7 +686,7 @@
           this.y += Math.sin(this.angle) * 0.0005;
         }
         
-        this.lastSoundLevel = soundLevel * 0.4; // 0.8 Slight decay
+        this.lastSoundLevel = soundLevel * 0.8; // 0.8 Slight decay
         this.normalizePosition();
       }
       
@@ -1077,30 +1076,21 @@
      */
     function applySoundImpulse() {
       const soundLevel = getSoundLevel();
+      const fluid = scene.fluid;
+      const centerIndex = Math.floor(fluid.numX / 2) * fluid.numY + Math.floor(fluid.numY / 2);
+      const impulseStrength = soundLevel * 2000.0;
       
-      // // Update audio indicator size based on sound level
-      // if (audioIndicator.style.display !== 'none') {
-      //   audioIndicator.style.transform = `scale(${1 + soundLevel})`;
-      // }
-      
-      if (soundLevel > 0) {
-        const fluid = scene.fluid;
-        const centerX = Math.floor(fluid.numX / 2);
-        const centerY = Math.floor(fluid.numY / 2);
-        const impulseStrength = soundLevel * 1000.0;
-        
-        // Apply impulse to a small block around the center
-        for (let i = -2; i <= 2; i++) {
-          for (let j = -2; j <= 2; j++) {
-            const index = (centerX + i) * fluid.numY + (centerY + j);
-            if (index >= 0 && index < fluid.numCells) {
-              fluid.u[index] += impulseStrength * (Math.random() * 2 - 1);
-              fluid.v[index] += impulseStrength * (Math.random() * 2 - 1);
-              
-              // Add a bit of smoke/color in paint mode
-              if (scene.sceneNr === 2 && soundLevel > 0.2) {
-                fluid.m[index] = Math.min(fluid.m[index] + soundLevel * 0.1, 1.0);
-              }
+      // Apply impulse to a small block around the center
+      for (let i = -2; i <= 2; i++) {
+        for (let j = -2; j <= 2; j++) {
+          const index = centerIndex + i * fluid.numY + j;
+          if (index >= 0 && index < fluid.numCells) {
+            fluid.u[index] += impulseStrength * (Math.random() * 2 - 1);
+            fluid.v[index] += impulseStrength * (Math.random() * 2 - 1);
+            
+            // Add a bit of smoke/color in paint mode
+            if (scene.sceneNr === 2 && soundLevel > 0.2) {
+              fluid.m[index] = Math.min(fluid.m[index] + soundLevel * 0.1, 1.0);
             }
           }
         }
