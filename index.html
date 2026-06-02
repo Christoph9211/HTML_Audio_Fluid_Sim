@@ -366,7 +366,7 @@
       </div>
     </div>
     
-    <div class="audio-controls mt-3" id="audioControlsSection";">
+    <div class="audio-controls mt-3" id="audioControlsSection">
       <div class="toggle-wrapper">
         <input type="checkbox" id="audioButton" class="toggle-switch" checked title="Toggle Audio Reactive">
         <label for="audioButton" class="toggle-label"></label>
@@ -380,7 +380,7 @@
     </div>
     
     <div class="audio-status mt-3">
-      <div id="noAudioMessage";">
+      <div id="noAudioMessage">
         <p>Microphone access is not available in this environment.</p>
         <button class="button mt-2" id="micPermissionBtn">Request Microphone Access</button>
       </div>
@@ -394,6 +394,10 @@
     // DOM elements
     const canvas = document.getElementById("myCanvas");
     const c = canvas.getContext("2d", { alpha: false });
+    const renderCanvas = document.createElement("canvas");
+    const renderContext = renderCanvas.getContext("2d", { alpha: false });
+    let renderImageData = null;
+    let canvasBgColor = "#000";
     const loadingIndicator = document.getElementById("loadingIndicator");
     const audioIndicator = document.getElementById("audioIndicator");
     const wave1 = document.getElementById("wave1");
@@ -423,8 +427,8 @@
       canvas.style.touchAction = "none"; // Prevents scrolling on mobile
       
       // Force a complete clear of the canvas with the correct background color
-      const bgColor = getComputedStyle(document.body).backgroundColor;
-      c.fillStyle = bgColor;
+      canvasBgColor = getComputedStyle(document.body).backgroundColor;
+      c.fillStyle = canvasBgColor;
       c.clearRect(0, 0, canvas.width, canvas.height);
       c.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -448,8 +452,7 @@
         setupScene(scene.sceneNr);
         
         // Force another clear to make sure everything is fresh
-        const bgColor = getComputedStyle(document.body).backgroundColor;
-        c.fillStyle = bgColor;
+        c.fillStyle = canvasBgColor;
         c.clearRect(0, 0, canvas.width, canvas.height);
         c.fillRect(0, 0, canvas.width, canvas.height);
         
@@ -481,6 +484,7 @@
     let audioSensitivity = 0.1;
     let audioAvailable = false;
     let noiseLevel = 0;
+    let currentSoundLevel = 0;
     
     /**
      * Checks if the Web Audio API is available in this browser
@@ -599,9 +603,8 @@
      * 
      * @return {number} normalized sound level
      */
-    function getSoundLevel() {
-      
-      if (!analyser) return 0;
+    function sampleSoundLevel() {
+      if (!audioEnabled || !analyser) return 0;
       
       analyser.getByteTimeDomainData(dataArray);
       let sum = 0;
@@ -617,6 +620,10 @@
       
       // Apply sensitivity adjustment (0.5 is default, range 0.01-1.0)
       return Math.min(cleanSignal / (64 * (2 - audioSensitivity * 1.8)), 1);
+    }
+
+    function getSoundLevel() {
+      return currentSoundLevel;
     }
     
     // ----- Fluid Simulation Code -----
@@ -650,6 +657,7 @@
         // Pre-calculate some constants
         this.n = this.numY;
         this.h2 = this.h * 0.5;
+        this.hInv = 1.0 / this.h;
       }
       
       /**
@@ -680,32 +688,40 @@
        */
       solveIncompressibility(numIters, dt) {
         const n = this.n;
+        const numX = this.numX;
+        const numY = this.numY;
+        const u = this.u;
+        const v = this.v;
+        const p = this.p;
+        const s = this.s;
         const cp = this.density * this.h / dt;
+        const overRelaxation = scene.overRelaxation;
         
         for (let iter = 0; iter < numIters; iter++) {
-          for (let i = 1; i < this.numX-1; i++) {
-            for (let j = 1; j < this.numY-1; j++) {
-              const index = i*n + j;
-              if (this.s[index] === 0.0) continue;
+          for (let i = 1; i < numX - 1; i++) {
+            const row = i * n;
+            const leftRow = row - n;
+            const rightRow = row + n;
+            for (let j = 1; j < numY - 1; j++) {
+              const index = row + j;
+              if (s[index] === 0.0) continue;
               
-              const sx0 = this.s[(i-1)*n + j];
-              const sx1 = this.s[(i+1)*n + j];
-              const sy0 = this.s[i*n + j-1];
-              const sy1 = this.s[i*n + j+1];
+              const sx0 = s[leftRow + j];
+              const sx1 = s[rightRow + j];
+              const sy0 = s[index - 1];
+              const sy1 = s[index + 1];
               const sSum = sx0 + sx1 + sy0 + sy1;
               
               if (sSum === 0.0) continue;
               
-              const div = this.u[(i+1)*n + j] - this.u[index] +
-                          this.v[i*n + j+1] - this.v[index];
-              let pCorr = -div / sSum;
-              pCorr *= scene.overRelaxation;
+              const div = u[rightRow + j] - u[index] + v[index + 1] - v[index];
+              const pCorr = (-div / sSum) * overRelaxation;
               
-              this.p[index] += cp * pCorr;
-              this.u[index] -= sx0 * pCorr;
-              this.u[(i+1)*n + j] += sx1 * pCorr;
-              this.v[index] -= sy0 * pCorr;
-              this.v[i*n + j+1] += sy1 * pCorr;
+              p[index] += cp * pCorr;
+              u[index] -= sx0 * pCorr;
+              u[rightRow + j] += sx1 * pCorr;
+              v[index] -= sy0 * pCorr;
+              v[index + 1] += sy1 * pCorr;
             }
           }
         }
@@ -736,21 +752,23 @@
        * @return {number} The interpolated field value.
        */
       sampleField(x, y, field) {
+        let dx = 0, dy = 0, f;
+        switch (field) {
+          case U_FIELD: f = this.u; dy = this.h2; break;
+          case V_FIELD: f = this.v; dx = this.h2; break;
+          case S_FIELD: f = this.m; dx = this.h2; dy = this.h2; break;
+        }
+        return this.sampleArray(f, x, y, dx, dy);
+      }
+
+      sampleArray(f, x, y, dx, dy) {
         const n = this.n;
         const h = this.h;
-        const h1 = 1.0 / h;
-        const h2 = this.h2;
+        const h1 = this.hInv;
         
         // Clamp coordinates to simulation bounds
         x = Math.max(Math.min(x, this.numX * h), h);
         y = Math.max(Math.min(y, this.numY * h), h);
-        
-        let dx = 0, dy = 0, f;
-        switch (field) {
-          case U_FIELD: f = this.u; dy = h2; break;
-          case V_FIELD: f = this.v; dx = h2; break;
-          case S_FIELD: f = this.m; dx = h2; dy = h2; break;
-        }
         
         // Bilinear interpolation
         const x0 = Math.min(Math.floor((x-dx)*h1), this.numX-1);
@@ -807,48 +825,48 @@
         this.newV.set(this.v);
         
         const n = this.n;
+        const numX = this.numX;
+        const numY = this.numY;
         const h = this.h, h2 = this.h2;
+        const u = this.u;
+        const v = this.v;
+        const s = this.s;
+        const newU = this.newU;
+        const newV = this.newV;
         
-        // Semi-Lagrangian advection
-        for (let i = 1; i < this.numX; i++) {
-          for (let j = 1; j < this.numY; j++) {
-            // u component
-            if (this.s[i*n + j] !== 0.0 && this.s[(i-1)*n + j] !== 0.0 && j < this.numY - 1) {
-              let x = i * h;
-              let y = j * h + h2;
-              let u_val = this.u[i*n + j];
-              let v_val = this.avgV(i, j);
-              
-              // Trace backward
-              x = x - dt*u_val;
-              y = y - dt*v_val;
-              
-              // Sample from the source position
-              u_val = this.sampleField(x, y, U_FIELD);
-              this.newU[i*n + j] = u_val;
-            }
-            
-            // v component
-            if (this.s[i*n + j] !== 0.0 && this.s[i*n + j-1] !== 0.0 && i < this.numX - 1) {
-              let x = i * h + h2;
-              let y = j * h;
-              let u_val = this.avgU(i, j);
-              let v_val = this.v[i*n + j];
-              
-              // Trace backward
-              x = x - dt*u_val;
-              y = y - dt*v_val;
-              
-              // Sample from the source position
-              v_val = this.sampleField(x, y, V_FIELD);
-              this.newV[i*n + j] = v_val;
-            }
+        for (let i = 1; i < numX; i++) {
+          const row = i * n;
+          const prevRow = row - n;
+          for (let j = 1; j < numY - 1; j++) {
+            const index = row + j;
+            if (s[index] === 0.0 || s[prevRow + j] === 0.0) continue;
+
+            const uVal = u[index];
+            const vVal = (v[prevRow + j] + v[index] + v[prevRow + j + 1] + v[index + 1]) * 0.25;
+            const x = i * h - dt * uVal;
+            const y = j * h + h2 - dt * vVal;
+            newU[index] = this.sampleArray(u, x, y, 0, h2);
+          }
+        }
+
+        for (let i = 1; i < numX - 1; i++) {
+          const row = i * n;
+          const nextRow = row + n;
+          for (let j = 1; j < numY; j++) {
+            const index = row + j;
+            if (s[index] === 0.0 || s[index - 1] === 0.0) continue;
+
+            const uVal = (u[index - 1] + u[index] + u[nextRow + j - 1] + u[nextRow + j]) * 0.25;
+            const vVal = v[index];
+            const x = i * h + h2 - dt * uVal;
+            const y = j * h - dt * vVal;
+            newV[index] = this.sampleArray(v, x, y, h2, 0);
           }
         }
         
         // Update velocity fields
-        this.u.set(this.newU);
-        this.v.set(this.newV);
+        u.set(newU);
+        v.set(newV);
       }
       
       /**
@@ -860,29 +878,38 @@
         this.newM.set(this.m);
         
         const n = this.n;
+        const numX = this.numX;
+        const numY = this.numY;
         const h = this.h, h2 = this.h2;
+        const u = this.u;
+        const v = this.v;
+        const s = this.s;
+        const m = this.m;
+        const newM = this.newM;
         
-        for (let i = 1; i < this.numX-1; i++) {
-          for (let j = 1; j < this.numY-1; j++) {
-            const index = i*n + j;
+        for (let i = 1; i < numX - 1; i++) {
+          const row = i * n;
+          const nextRow = row + n;
+          for (let j = 1; j < numY - 1; j++) {
+            const index = row + j;
             
-            if (this.s[index] !== 0.0) {
+            if (s[index] !== 0.0) {
               // Calculate cell center velocity
-              const u_val = (this.u[index] + this.u[(i+1)*n + j]) * 0.5;
-              const v_val = (this.v[index] + this.v[i*n + j+1]) * 0.5;
+              const u_val = (u[index] + u[nextRow + j]) * 0.5;
+              const v_val = (v[index] + v[index + 1]) * 0.5;
               
               // Trace backward
               const x = i*h + h2 - dt*u_val;
               const y = j*h + h2 - dt*v_val;
               
               // Sample from the source position
-              this.newM[index] = this.sampleField(x, y, S_FIELD);
+              newM[index] = this.sampleArray(m, x, y, h2, h2);
             }
           }
         }
         
         // Update smoke field
-        this.m.set(this.newM);
+        m.set(newM);
       }
       
       /**
@@ -1239,14 +1266,22 @@
       const cellSize = fluid.h;
       const vortexStrength = scene.vortexStrength;
       const soundLevel = getSoundLevel();
+      const influenceRadius = 0.25;
+      const influenceRadiusSq = influenceRadius * influenceRadius;
+      const forceScale = vortexStrength * (soundLevel + 0.1);
       
       // Update each vortex point position/state
       for (const vortex of scene.vortexPoints) {
         vortex.update(soundLevel, dt);
+
+        const minI = Math.max(1, Math.floor((vortex.x - influenceRadius) / cellSize - 0.5));
+        const maxI = Math.min(fluid.numX - 2, Math.ceil((vortex.x + influenceRadius) / cellSize - 0.5));
+        const minJ = Math.max(1, Math.floor((vortex.y - influenceRadius) / cellSize - 0.5));
+        const maxJ = Math.min(fluid.numY - 2, Math.ceil((vortex.y + influenceRadius) / cellSize - 0.5));
         
         // Apply vortex force to fluid cells
-        for (let i = 1; i < fluid.numX - 1; i++) {
-          for (let j = 1; j < fluid.numY - 1; j++) {
+        for (let i = minI; i <= maxI; i++) {
+          for (let j = minJ; j <= maxJ; j++) {
             const index = i * numY + j;
             if (fluid.s[index] === 0.0) continue;
             
@@ -1254,15 +1289,16 @@
             const cellCenterY = (j + 0.5) * cellSize;
             const dx = cellCenterX - vortex.x;
             const dy = cellCenterY - vortex.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const distanceSq = dx * dx + dy * dy;
             
-            if (distance < 0.25) {
-              const forceMagnitude = (0.25 - distance) * vortex.strength * 
-                                     vortexStrength * (soundLevel + 0.1);
+            if (distanceSq < influenceRadiusSq) {
+              const distance = Math.sqrt(distanceSq);
+              const invDistance = 1 / Math.max(distance, 0.001);
+              const forceMagnitude = (influenceRadius - distance) * vortex.strength * forceScale;
               
               // Circular force field (perpendicular to radial direction)
-              const forceX = -dy * forceMagnitude / Math.max(distance, 0.001);
-              const forceY = dx * forceMagnitude / Math.max(distance, 0.001);
+              const forceX = -dy * forceMagnitude * invDistance;
+              const forceY = dx * forceMagnitude * invDistance;
               
               // Apply force to velocity field
               fluid.u[index] += forceX * 0.5;
@@ -1330,6 +1366,8 @@
      */
     function applySoundImpulse() {
       const soundLevel = getSoundLevel();
+      if (soundLevel <= 0.005) return;
+
       const fluid = scene.fluid;
       const centerIndex = Math.floor(fluid.numX / 2) * fluid.numY + Math.floor(fluid.numY / 2);
       const impulseStrength = soundLevel * 2000.0;
@@ -1358,12 +1396,9 @@
       // Skip drawing during resize to avoid ghosting
       if (window.isResizing) return;
       
-      // Get actual background color from body for proper clearing
-      const bgColor = getComputedStyle(document.body).backgroundColor;
-      
       // Clear canvas more thoroughly
       c.clearRect(0, 0, canvas.width, canvas.height);
-      c.fillStyle = bgColor;
+      c.fillStyle = canvasBgColor;
       c.fillRect(0, 0, canvas.width, canvas.height);
       
       const f = scene.fluid;
@@ -1373,83 +1408,90 @@
       // Find min/max pressure for color scaling
       let minP = f.p[0], maxP = f.p[0];
       
-      for (let i = 0; i < f.numCells; i++) {
-        minP = Math.min(minP, f.p[i]);
-        maxP = Math.max(maxP, f.p[i]);
+      if (scene.showPressure) {
+        for (let i = 0; i < f.numCells; i++) {
+          minP = Math.min(minP, f.p[i]);
+          maxP = Math.max(maxP, f.p[i]);
+        }
       }
       
-      // Create image data for pixel manipulation - big performance win vs. drawing rects
-      const width = canvas.width;
-      const height = canvas.height;
-      const id = c.createImageData(width, height);
-      const data = id.data;
+      const renderWidth = f.numX;
+      const renderHeight = f.numY;
+      if (renderCanvas.width !== renderWidth || renderCanvas.height !== renderHeight) {
+        renderCanvas.width = renderWidth;
+        renderCanvas.height = renderHeight;
+        renderImageData = renderContext.createImageData(renderWidth, renderHeight);
+      }
       
-      // Calculate cell dimensions once
-      const cellWidth = Math.ceil(cScale * h);
-      const cellHeight = Math.ceil(cScale * h);
+      const id = renderImageData;
+      const data = id.data;
       
       // Render fluid cells
       for (let i = 0; i < f.numX; i++) {
         for (let j = 0; j < f.numY; j++) {
           const idx = i*n+j;
-          let color = [255, 255, 255, 255]; // Default white
+          let r = 255;
+          let g = 255;
+          let b = 255;
           
           // Determine cell color based on visualization mode
           if (scene.showPressure) {
             const p = f.p[idx];
             const sVal = f.m[idx];
-            color = getSciColor(p, minP, maxP);
+            const color = getSciColor(p, minP, maxP);
+            r = color[0];
+            g = color[1];
+            b = color[2];
             
             if (scene.showSmoke) {
               // Blend with smoke density
-              color[0] = Math.max(0, color[0] - 255*sVal);
-              color[1] = Math.max(0, color[1] - 255*sVal);
-              color[2] = Math.max(0, color[2] - 255*sVal);
+              r = Math.max(0, r - 255*sVal);
+              g = Math.max(0, g - 255*sVal);
+              b = Math.max(0, b - 255*sVal);
             }
           } else if (scene.showSmoke) {
             const sVal = f.m[idx];
             // Show smoke density with adjusted visualization
             if (scene.sceneNr === 2) {
               // For paint mode, use a colorful visualization
-              color = getSciColor(sVal, 0, 1);
+              const color = getSciColor(sVal, 0, 1);
+              r = color[0];
+              g = color[1];
+              b = color[2];
             } else {
               // For other modes, use grayscale
               // color = [255*(1-sVal), 255*(1-sVal), 255*(1-sVal), 255];
-              color = getSciColor(sVal, 0, 1);
+              const color = getSciColor(sVal, 0, 1);
+              r = color[0];
+              g = color[1];
+              b = color[2];
             }
           } else {
             // Default: black for obstacles, white for fluid
-            color = f.s[idx] === 0.0 ? [0, 0, 0, 255] : [255, 255, 255, 255];
-          }
-          
-          // Calculate pixel coordinates
-          const x = Math.floor(cX(i * h));
-          const y = Math.floor(cY((j+1) * h));
-          
-          // Skip out-of-bounds cells
-          if (x < 0 || x >= width || y < 0 || y >= height) continue;
-          
-          // Draw cell as a rectangle of pixels
-          for (let yi = 0; yi < cellHeight; yi++) {
-            if (y - yi < 0 || y - yi >= height) continue; // Skip if out of bounds
-            
-            const rowOffset = 4 * ((y - yi) * width + x);
-            
-            for (let xi = 0; xi < cellWidth; xi++) {
-              if (x + xi >= width) break; // Skip if out of bounds
-              
-              const pixelOffset = rowOffset + 4 * xi;
-              data[pixelOffset] = color[0];      // R
-              data[pixelOffset + 1] = color[1];  // G
-              data[pixelOffset + 2] = color[2];  // B
-              data[pixelOffset + 3] = 255;       // A
+            if (f.s[idx] === 0.0) {
+              r = 0;
+              g = 0;
+              b = 0;
             }
           }
+
+          const pixelOffset = 4 * ((renderHeight - 1 - j) * renderWidth + i);
+          data[pixelOffset] = r;
+          data[pixelOffset + 1] = g;
+          data[pixelOffset + 2] = b;
+          data[pixelOffset + 3] = 255;
         }
       }
       
-      // Apply the pixel data to the canvas
-      c.putImageData(id, 0, 0);
+      renderContext.putImageData(id, 0, 0);
+      c.imageSmoothingEnabled = false;
+      c.drawImage(
+        renderCanvas,
+        0,
+        canvas.height - renderHeight * h * cScale,
+        renderWidth * h * cScale,
+        renderHeight * h * cScale
+      );
       
       // Draw vortex points if enabled
       if (scene.useVortices) {
@@ -1608,7 +1650,7 @@
     let lastTime = 0;
     let frameCount = 0;
     let fps = 0;
-    const fpsUpdateInterval = 5; // ms
+    const fpsUpdateInterval = 250; // ms
     let lastFpsUpdate = 0;
     
     function updateFps(timestamp) {
@@ -1661,6 +1703,8 @@
       
       // Update FPS counter
       updateFps(timestamp);
+
+      currentSoundLevel = sampleSoundLevel();
       
       // Apply sound-based disturbance
       applySoundImpulse();
@@ -1802,6 +1846,7 @@
     
     audioButton.addEventListener('change', function() {
       audioEnabled = this.checked;
+      if (!audioEnabled) currentSoundLevel = 0;
       audioIndicator.style.display = audioEnabled ? 'flex' : 'none';
     });
     
